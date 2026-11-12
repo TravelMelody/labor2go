@@ -1,0 +1,279 @@
+<!DOCTYPE html><html lang="id" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><meta content="mobile_tab" name="shell-type"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { colors: { "surface-container-lowest": "#ffffff", "outline-variant": "#e2bfb0", "on-error": "#ffffff", "surface-tint": "#a04100", "tertiary-fixed-dim": "#4edea3", "error": "#ba1a1a", "tertiary": "#006c49", "inverse-primary": "#ffb693", "surface-container-low": "#eff4ff", "primary-fixed": "#ffdbcc", "primary": "#a04100", "secondary": "#4e5e82", "on-secondary": "#ffffff", "on-primary-container": "#572000", "surface-container-highest": "#d3e4fe", "secondary-container": "#c4d4fe", "on-secondary-fixed-variant": "#364669", "surface-bright": "#f8f9ff", "surface-variant": "#d3e4fe", "on-tertiary-fixed": "#002113", "on-tertiary-fixed-variant": "#005236", "on-secondary-fixed": "#071b3b", "on-surface": "#0b1c30", "surface-dim": "#cbdbf5", "primary-fixed-dim": "#ffb693", "surface-container": "#e5eeff", "on-tertiary-container": "#003925", "error-container": "#ffdad6", "inverse-surface": "#213145", "on-surface-variant": "#5a4136", "on-tertiary": "#ffffff", "on-secondary-container": "#4b5b7f", "tertiary-container": "#00ae78", "surface": "#f8f9ff", "on-background": "#0b1c30", "primary-container": "#ff6b00", "secondary-fixed-dim": "#b6c6f0", "surface-container-high": "#dce9ff", "inverse-on-surface": "#eaf1ff", "on-primary": "#ffffff", "background": "#f8f9ff", "secondary-fixed": "#d8e2ff", "on-error-container": "#93000a", "tertiary-fixed": "#6ffbbe", "on-primary-fixed": "#351000", "on-primary-fixed-variant": "#7a3000", "outline": "#8e7164" }, borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, spacing: { "space-xl": "2rem", "gutter": "1rem", "space-md": "1rem", "space-lg": "1.5rem", "space-xs": "0.25rem", "margin-lg": "1.5rem", "margin": "1rem", "space-sm": "0.5rem", "gutter-sm": "0.5rem" }, fontFamily: { "body-md": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "label-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"] }, fontSize: { "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }], "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "700" }], "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "700" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "600" }] } } } };</script><style>@layer base{html,body{width:100vw;margin:0;padding:0;min-height:100%;}body{overscroll-behavior-y:none;-webkit-tap-highlight-color:transparent;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style></head><body class="bg-surface text-on-surface font-body-md text-body-md flex flex-col min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(26,43,76,0.06)]"><div class="h-16 px-gutter flex items-center justify-between relative"><div class="absolute inset-x-0 mx-auto w-fit max-w-[55%] text-center pointer-events-none"><h1 class="font-headline-sm text-headline-sm text-on-surface truncate">cKelola Lowongan</h1></div><div class="flex items-center gap-space-sm"><button aria-label="Notifikasi" class="w-11 h-11 flex items-center justify-center rounded-full text-secondary hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-[22px]">notifications</span></button></div></div></header><main class="flex-1 flex flex-col relative w-full pt-16 pb-24 bg-surface"><div class="flex flex-col w-full">
+<!-- Sticky Pill Tab Switcher Card -->
+<section class="w-full bg-surface-container-lowest px-gutter py-space-sm shadow-[0_4px_16px_rgba(26,43,76,0.04)] mb-space-md">
+<div class="bg-surface-container-low p-1 rounded-full flex items-center justify-between gap-1" role="tablist">
+<button aria-selected="true" class="flex-1 py-2 px-space-md rounded-full bg-inverse-surface text-surface-container-lowest font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm" id="tab-btn-active" onclick="switchTab('active')" role="tab">
+<span class="">&nbsp;Aktif</span>
+<span class="w-5 h-5 rounded-full bg-primary-container text-on-primary font-label-sm text-label-sm flex items-center justify-center">2</span>
+</button>
+<button aria-selected="false" class="flex-1 py-2 px-space-md rounded-full bg-transparent text-secondary font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 hover:text-on-surface" id="tab-btn-history" onclick="switchTab('history')" role="tab">
+<span class="">Riwayat</span>
+<span class="w-5 h-5 rounded-full bg-surface-container-highest text-secondary font-label-sm text-label-sm flex items-center justify-center">14</span>
+</button>
+</div>
+</section>
+<!-- Live Quick Metric Strip -->
+<div class="px-gutter mb-space-md">
+
+</div>
+<!-- Job List Container -->
+<div class="px-gutter flex flex-col pb-space-lg">
+<!-- Tab Pane: Status Aktif (Contains Ongoing & Pending Cards) -->
+<div class="flex flex-col gap-space-md" id="pane-active">
+<!-- CARD 1: Ongoing / Sedang Berjalan -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_8px_24px_-4px_rgba(26,43,76,0.08)] flex flex-col gap-space-md relative overflow-hidden">
+<!-- Subtle Green Focus Accent Edge -->
+<div class="absolute left-0 top-0 bottom-0 w-1.5 bg-tertiary-container"></div>
+<!-- Top Row -->
+<div class="flex items-start justify-between gap-space-sm pl-1.5">
+<div class="flex flex-col min-w-0">
+
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">Packing Pesanan</h2>
+</div>
+<span class="flex-shrink-0 inline-flex items-center gap-1.5 bg-surface-container-low px-3 py-1 rounded-full text-tertiary font-label-md text-label-md">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+            Sedang Berjalan
+          </span>
+</div>
+<!-- Middle Row: Worker Info & Progress Micro-Visual -->
+<div class="bg-surface-container-low rounded-xl p-space-sm flex items-center justify-between gap-space-sm ml-1.5">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="relative flex-shrink-0">
+<img class="w-11 h-11 rounded-full object-cover shadow-sm" data-alt="Close up portrait photo of Bagas, an energetic Indonesian male university student smiling warmly wearing a navy campus polo shirt with neat styling, natural morning sunlight outdoors, friendly peer worker persona." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBphZg2Nv7Q8IcHOTRKxpWd89Rv84ZAVzVL2262y267SgYbMvJ0VqCSKH4ZwyUe0pScxYkAc64GkXXXjfJjkkunGPldyQYi4guFf6vS1v8RVhDPsmA-tlxamnai80yOpvpoqo-u_rYStiT7Q46bezajYWTZyjs2ofixO54o11ju-VUqPv18uH3ZUisn5plpkNwBnwgeQNJcLid1LWhUfysz70HjAp92xrckpmyCLln5q2eD5IHJrj1mKQ">
+<span class="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-tertiary-container rounded-full flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[10px]">check</span>
+</span>
+</div>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-1.5">
+<span class="font-label-lg text-label-lg text-on-surface truncate">Bagas</span>
+<span class="inline-flex items-center text-label-sm font-label-sm text-primary-container bg-surface-container-lowest px-1.5 py-0.5 rounded-full">
+                  ★ 4.9
+                </span>
+</div>
+<span class="font-body-sm text-body-sm text-secondary truncate">Est. selesai 20:00 • FMIPA</span>
+</div>
+</div>
+<!-- Direct Call & Chat Quick Access -->
+<div class="flex items-center gap-1 flex-shrink-0">
+<button aria-label="Kirim Pesan" class="w-9 h-9 rounded-full bg-surface-container-lowest text-secondary flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">chat</span>
+</button>
+<button aria-label="Telepon Pekerja" class="w-9 h-9 rounded-full bg-surface-container-lowest text-secondary flex items-center justify-center shadow-sm active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[18px]">call</span>
+</button>
+</div>
+</div>
+<!-- Live Step Pulse -->
+<div class="flex items-center gap-2 text-secondary font-body-sm text-body-sm pl-1.5">
+
+
+</div>
+<!-- Bottom Row (Footer) -->
+<div class="pt-space-xs flex items-center justify-between pl-1.5">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-secondary">Upah Bersih</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Total: Rp 55.000</span>
+</div>
+<button class="inline-flex items-center gap-1.5 bg-primary-container text-on-primary px-space-md py-2.5 rounded-full font-label-md text-label-md shadow-[0_4px_12px_rgba(255,107,0,0.3)] active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[18px]">near_me</span>
+<span class="">Lacak Pekerja</span>
+</button>
+</div>
+</article>
+<!-- CARD 2: Looking for Worker / Mencari Pekerja -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] flex flex-col gap-space-md">
+<!-- Top Row -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider"><br></span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">Bantu Cuci Piring</h2>
+</div>
+<span class="flex-shrink-0 inline-flex items-center gap-1 bg-primary-fixed text-primary-container px-3 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px]">radar</span>
+            Mencari Pekerja
+          </span>
+</div>
+<!-- Middle Row: Animated Seeking Radar -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center gap-space-md">
+<div class="relative w-10 h-10 flex-shrink-0 flex items-center justify-center">
+<span class="absolute inset-0 rounded-full bg-primary-container/20 animate-ping opacity-75"></span>
+<div class="w-10 h-10 rounded-full bg-primary-container/10 flex items-center justify-center text-primary-container relative z-10">
+<span class="material-symbols-outlined text-[20px] animate-spin" style="animation-duration: 3s;">sync</span>
+</div>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-md text-label-md text-on-surface truncate">Mencocokkan Mahasiswa Terdekat</span>
+<span class="font-body-sm text-body-sm text-secondary truncate">Menunggu respons mahasiswa sekitar...</span>
+</div>
+</div>
+<!-- Live Candidate Peek Badges -->
+<div class="flex items-center justify-between text-secondary">
+<div class="flex items-center -space-x-2 overflow-hidden">
+<img class="inline-block h-6 w-6 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Small circular avatar profile of an Indonesian student candidate Siti wearing yellow hijab, bright friendly expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAGxx5D8bU83jXYUZ2DDrlaPHbLhC8SwolmNQh1Cqjj33yNgYmNgCu64CuQ5CiEhjfQNgIhrmx8WdP5dlWlOZ7k25pppzQ-spTuWaGQMpMMOWR2eqxTw-KJc6sQqMpuBjguSUqQBUCyw8C95wt-u-7RmpuLbDrPspO77gX6fL2BrpeMTJqGuAuLGqWZ2FRLN8QdSXz4L7SLWU8lYOheiXP4Eq65gytF0yxdaqcL_6yn8Mv5b6ORqfPPSg">
+<img class="inline-block h-6 w-6 rounded-full ring-2 ring-surface-container-lowest object-cover" data-alt="Small circular avatar of an Indonesian male student with eyeglasses and black backpack smiling, outdoors on campus grounds." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBqr3GyxnwF7f-4M8cuFeTNHWyuurlnTWH5WDHRB-U1epeOPWgG1lFdWTC68xPyBbt2HVcY1p-vvQplzAkhJphbT0pzG_H_1_tMRdjVBSgEkvIXZ47DLB3rpRZxH18NXZc7QZYAa_ozFj3EP0gDCLcSHVmjRni_a_KPmddK5Y9gyaQutoz5BOSCFOxh9oULjKVsprwtAmNhRezrd80u4L4HfxJQC45tURUQkoYr4EHfkw5Q-IdqrhSQkw">
+<div class="h-6 w-6 rounded-full bg-surface-container-highest text-secondary font-label-sm text-label-sm flex items-center justify-center ring-2 ring-surface-container-lowest">
+              +3
+            </div>
+</div>
+<span class="font-body-sm text-body-sm text-secondary">5 mahasiswa sedang melihat...</span>
+</div>
+<!-- Bottom Row (Footer) -->
+<div class="pt-space-xs flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-secondary">Alokasi Dana</span>
+<span class="font-headline-sm text-headline-sm text-on-surface">Total: Rp 45.000</span>
+</div>
+<button class="inline-flex items-center gap-1 text-error bg-error-container/40 px-space-md py-2 rounded-full font-label-md text-label-md hover:bg-error-container active:scale-95 transition-all" onclick="confirmCancel(this)">
+<span class="material-symbols-outlined text-[16px]">close</span>
+<span class="">Batalkan</span>
+</button>
+</div>
+</article>
+</div>
+<!-- Tab Pane: Riwayat (History - Initially visible below or toggled via script) -->
+<div class="flex flex-col gap-space-md mt-space-md" id="pane-history">
+<!-- Section Divider Label -->
+<div class="flex items-center justify-between pt-space-xs">
+<span class="font-label-md text-label-md text-secondary uppercase tracking-wider">Tugas Terselesaikan</span>
+<button class="font-label-sm text-label-sm text-primary-container flex items-center gap-0.5">
+<span class="">Filter Tanggal</span>
+<span class="material-symbols-outlined text-[14px]">tune</span>
+</button>
+</div>
+<!-- CARD 3: Completed / Selesai -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_2px_8px_rgba(26,43,76,0.04)] flex flex-col gap-space-md opacity-95">
+<!-- Top Row -->
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Selesai</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">Bantu Kasir</h2>
+</div>
+<span class="flex-shrink-0 inline-flex items-center gap-1 bg-surface-container text-secondary px-3 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px] text-tertiary">check_circle</span>
+            Selesai
+          </span>
+</div>
+<!-- Middle Row: Worker Record -->
+<div class="bg-surface-container-low/60 rounded-xl p-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="font-body-md text-body-md text-secondary truncate">Dikerjakan oleh <strong class="text-on-surface font-label-md">Budi</strong> • 15 Sep</span>
+</div>
+</div>
+<div class="flex items-center text-primary-container">
+<span class="material-symbols-outlined text-[16px]">star</span>
+<span class="font-label-sm text-label-sm ml-0.5 font-bold">5.0</span>
+</div>
+</div>
+<!-- Bottom Row (Footer) -->
+<div class="pt-space-xs flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-secondary">Telah Dicairkan</span>
+<span class="font-headline-sm text-headline-sm text-secondary line-through">Total: Rp 55.000</span>
+</div>
+<button class="inline-flex items-center gap-1 text-secondary bg-surface-container px-space-md py-2 rounded-full font-label-md text-label-md hover:bg-surface-container-high active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+<span class="">Lihat Nota</span>
+</button>
+</div>
+</article>
+<!-- Additional Past Gig for Realism & Balance -->
+<article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_2px_8px_rgba(26,43,76,0.04)] flex flex-col gap-space-md opacity-90">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex flex-col min-w-0">
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">Selesai&nbsp;</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface truncate">Packing Pesanan</h2>
+</div>
+<span class="flex-shrink-0 inline-flex items-center gap-1 bg-surface-container text-secondary px-3 py-1 rounded-full font-label-md text-label-md">
+<span class="material-symbols-outlined text-[14px] text-tertiary">check_circle</span>
+            Selesai
+          </span>
+</div>
+<div class="bg-surface-container-low/60 rounded-xl p-space-sm flex items-center justify-between">
+<div class="flex items-center gap-space-sm min-w-0">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center text-secondary flex-shrink-0">
+<span class="material-symbols-outlined text-[18px]">person</span>
+</div>
+<div class="flex items-center gap-1.5 min-w-0">
+<span class="font-body-md text-body-md text-secondary truncate">Dikerjakan oleh <strong class="text-on-surface font-label-md">Dewi Rahayu</strong> • 12 Sep</span>
+</div>
+</div>
+<div class="flex items-center text-primary-container">
+<span class="material-symbols-outlined text-[16px]">star</span>
+<span class="font-label-sm text-label-sm ml-0.5 font-bold">5.0</span>
+</div>
+</div>
+<div class="pt-space-xs flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-secondary">Telah Dicairkan</span>
+<span class="font-headline-sm text-headline-sm text-secondary line-through">Total: Rp 70.000</span>
+</div>
+<button class="inline-flex items-center gap-1 text-secondary bg-surface-container px-space-md py-2 rounded-full font-label-md text-label-md hover:bg-surface-container-high active:scale-95 transition-all">
+<span class="material-symbols-outlined text-[16px]">receipt_long</span>
+<span class="">Lihat Nota</span>
+</button>
+</div>
+</article>
+</div>
+<!-- Joyful Tip Banner -->
+<div class="mt-space-md p-space-md bg-primary-fixed/20 rounded-2xl flex items-center gap-space-sm">
+<div class="w-9 h-9 rounded-full bg-primary-container text-on-primary flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-[20px]">tips_and_updates</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface leading-tight">
+        Tugas dengan deskripsi titik kumpul jelas di area kampus rata-rata diterima mahasiswa dalam <strong>3 menit</strong>!
+      </p>
+</div>
+</div>
+</div>
+<script>
+  function switchTab(mode) {
+    const btnActive = document.getElementById('tab-btn-active');
+    const btnHistory = document.getElementById('tab-btn-history');
+    const paneActive = document.getElementById('pane-active');
+    const paneHistory = document.getElementById('pane-history');
+
+    if (mode === 'active') {
+      btnActive.className = 'flex-1 py-2 px-space-md rounded-full bg-inverse-surface text-surface-container-lowest font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm';
+      btnActive.setAttribute('aria-selected', 'true');
+      btnHistory.className = 'flex-1 py-2 px-space-md rounded-full bg-transparent text-secondary font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 hover:text-on-surface';
+      btnHistory.setAttribute('aria-selected', 'false');
+
+      paneActive.classList.remove('hidden');
+      paneHistory.classList.remove('hidden');
+    } else {
+      btnHistory.className = 'flex-1 py-2 px-space-md rounded-full bg-inverse-surface text-surface-container-lowest font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 shadow-sm';
+      btnHistory.setAttribute('aria-selected', 'true');
+      btnActive.className = 'flex-1 py-2 px-space-md rounded-full bg-transparent text-secondary font-label-md text-label-md flex items-center justify-center gap-1.5 transition-all duration-200 hover:text-on-surface';
+      btnActive.setAttribute('aria-selected', 'false');
+
+      paneActive.classList.add('hidden');
+      paneHistory.classList.remove('hidden');
+    }
+  }
+
+  function confirmCancel(button) {
+    if (confirm('Batalkan pencarian pekerja untuk tugas ini? Dana escrow Rp 45.000 akan otomatis kembali ke Dompet Dana Anda.')) {
+      const card = button.closest('article');
+      if (card) {
+        card.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.96)';
+        setTimeout(() => {
+          card.remove();
+        }, 250);
+      }
+    }
+  }
+</script></main><nav class="fixed bottom-0 inset-x-0 z-50 pb-safe bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_-4px_24px_rgba(26,43,76,0.08)]" data-active-classes="text-primary-container font-label-md"><div class="grid grid-cols-5 items-end h-16 px-space-xs"><a class="flex flex-col items-center justify-center h-full gap-0.5 text-secondary hover:text-on-surface transition-colors" data-path="home" href="#"><span class="material-symbols-outlined text-[22px]">home</span><span class="font-label-sm text-label-sm">Home</span></a><a aria-current="page" class="flex flex-col items-center justify-center h-full gap-0.5 transition-colors text-primary-container font-label-md" data-path="kelola-lowongan" href="#"><span class="material-symbols-outlined text-[22px]">assignment</span><span class="font-label-sm text-label-sm">Kelola Tugas</span></a><div class="relative flex flex-col items-center justify-start h-full"><a class="-top-5 absolute flex flex-col items-center justify-center group" data-path="pasang-lowongan" href="#"><div class="w-[52px] h-[52px] rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-[0_8px_20px_-2px_rgba(255,107,0,0.45)] group-active:scale-95 transition-transform"><span class="material-symbols-outlined text-[28px]">add</span></div><span class="font-label-sm text-label-sm text-secondary group-hover:text-on-surface transition-colors mt-1">Pasang</span></a></div><a class="flex flex-col items-center justify-center h-full gap-0.5 text-secondary hover:text-on-surface transition-colors" data-path="dompet-dana" href="#"><span class="material-symbols-outlined text-[22px]">account_balance_wallet</span><span class="font-label-sm text-label-sm">Dana</span></a><a class="flex flex-col items-center justify-center h-full gap-0.5 text-secondary hover:text-on-surface transition-colors" data-path="akun-merchant" href="#"><span class="material-symbols-outlined text-[22px]">person</span><span class="font-label-sm text-label-sm">Akun</span></a></div></nav>
+
+
+
+
+
+</body></html>

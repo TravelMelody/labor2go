@@ -1,0 +1,322 @@
+<!DOCTYPE html><html lang="id" style=""><head><meta charset="utf-8"><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"><title>KampusKerja</title><link href="https://fonts.googleapis.com" rel="preconnect"><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "surface-container-lowest": "#ffffff", "surface-container": "#e5eeff", "on-secondary-fixed-variant": "#364669", "inverse-on-surface": "#eaf1ff", "secondary-container": "#c4d4fe", "background": "#f8f9ff", "surface-bright": "#f8f9ff", "on-primary-container": "#572000", "tertiary-container": "#00ae78", "on-surface": "#0b1c30", "inverse-surface": "#213145", "on-tertiary-fixed-variant": "#005236", "surface-dim": "#cbdbf5", "inverse-primary": "#ffb693", "primary-fixed": "#ffdbcc", "surface-variant": "#d3e4fe", "on-primary-fixed-variant": "#7a3000", "secondary-fixed": "#d8e2ff", "tertiary-fixed-dim": "#4edea3", "outline-variant": "#e2bfb0", "secondary": "#4e5e82", "outline": "#8e7164", "error": "#ba1a1a", "on-primary-fixed": "#351000", "primary-container": "#ff6b00", "tertiary-fixed": "#6ffbbe", "primary": "#a04100", "error-container": "#ffdad6", "on-tertiary-container": "#003925", "secondary-fixed-dim": "#b6c6f0", "on-tertiary-fixed": "#002113", "surface-container-low": "#eff4ff", "on-secondary-fixed": "#071b3b", "primary-fixed-dim": "#ffb693", "on-error-container": "#93000a", "on-secondary": "#ffffff", "on-primary": "#ffffff", "on-surface-variant": "#5a4136", "surface": "#f8f9ff", "on-secondary-container": "#4b5b7f", "tertiary": "#006c49", "on-error": "#ffffff", "on-background": "#0b1c30", "surface-container-highest": "#d3e4fe", "surface-container-high": "#dce9ff", "on-tertiary": "#ffffff", "surface-tint": "#a04100" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "margin": "1rem", "space-lg": "1.5rem", "margin-lg": "1.5rem", "gutter": "1rem", "space-sm": "0.5rem", "space-xs": "0.25rem", "space-xl": "2rem", "space-md": "1rem", "gutter-sm": "0.5rem" }, "fontFamily": { "label-sm": ["Plus Jakarta Sans"], "headline-xl": ["Plus Jakarta Sans"], "body-sm": ["Plus Jakarta Sans"], "label-md": ["Plus Jakarta Sans"], "body-lg": ["Plus Jakarta Sans"], "label-lg": ["Plus Jakarta Sans"], "headline-md": ["Plus Jakarta Sans"], "headline-lg": ["Plus Jakarta Sans"], "body-md": ["Plus Jakarta Sans"], "headline-sm": ["Plus Jakarta Sans"] }, "fontSize": { "label-sm": ["10px", { "lineHeight": "14px", "letterSpacing": "0.02em", "fontWeight": "700" }], "headline-xl": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "800" }], "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "400" }], "label-md": ["12px", { "lineHeight": "16px", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "500" }], "label-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "700" }], "headline-md": ["20px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.015em", "fontWeight": "700" }], "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }], "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "600" }] } } } }</script><style>@layer base{html,body{width:100%;margin:0;padding:0;background-color:#f8f9ff;font-family:'Plus Jakarta Sans',sans-serif;overscroll-behavior-y:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}*{-ms-overflow-style:none;scrollbar-width:none;}</style><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+<meta content="mobile_stack" name="shell-type"><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head><body class="bg-surface text-on-surface min-h-screen flex flex-col antialiased selection:bg-primary-container selection:text-on-primary"><header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] pt-safe"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-xs"><button aria-label="Kembali" class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface hover:bg-surface-container-low transition-colors -ml-space-xs" onclick="history.back()"><span class="material-symbols-outlined text-[22px]">arrow_back</span></button><h1 class="font-headline-sm text-headline-sm text-on-surface tracking-tight truncate max-w-[200px]">Job Detail</h1></div><div class="flex items-center gap-space-xs"><button aria-label="Bagikan" class="w-11 h-11 flex items-center justify-center rounded-full text-secondary hover:bg-surface-container-low transition-colors"><span class="material-symbols-outlined text-[22px]">share</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-sm"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div></div></div></header><main class="flex-1 w-full bg-surface pt-16 pb-safe px-margin flex flex-col"><div class="flex flex-col w-full pb-10 space-y-4">
+<!-- Live Broadcast Status Banner -->
+<div class="flex items-center justify-between bg-surface-container-low px-space-md py-space-sm rounded-xl">
+<div class="flex items-center space-x-2">
+<span class="relative flex h-2.5 w-2.5">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary-container opacity-75"></span>
+<span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary-container"></span>
+</span>
+<span class="font-label-md text-label-md text-on-surface">Lowongan Disiarkan</span>
+</div>
+<div class="flex items-center space-x-1 bg-surface-container-lowest px-2 py-0.5 rounded-full shadow-sm">
+<span class="material-symbols-outlined text-[14px] text-tertiary">lock</span>
+<span class="font-label-sm text-label-sm text-tertiary">Escrow Terkunci</span>
+</div>
+</div>
+<!-- Radar / Live Broadcast Hero Card -->
+<div class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-md shadow-sm space-y-4">
+<!-- Pulsing Radar Graphic -->
+<div class="relative flex flex-col items-center justify-center py-4">
+<div class="relative flex items-center justify-center w-28 h-28">
+<!-- Ripple Rings -->
+<div class="absolute w-28 h-28 rounded-full bg-primary-container/10 animate-ping" style="animation-duration: 2.2s;"></div>
+<div class="absolute w-20 h-20 rounded-full bg-primary-container/15 animate-pulse"></div>
+<div class="relative z-10 w-14 h-14 rounded-full bg-primary-container text-on-primary flex items-center justify-center shadow-md">
+<span class="material-symbols-outlined text-[28px]" style="font-variation-settings: &quot;FILL&quot; 1;">sensors</span>
+</div>
+</div>
+<!-- Live Count Status -->
+<div class="text-center mt-3 space-y-1">
+<div class="flex items-center justify-center space-x-1.5">
+<span class="font-headline-sm text-headline-sm text-on-surface">Menghubungi 48 Mahasiswa</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary">Area Kampus Sekitar Unnes • Radius 1.5 km</p>
+</div>
+</div>
+<!-- Countdown & Turnaround Metric -->
+<div class="grid grid-cols-2 gap-2 bg-surface-container-low p-space-sm rounded-xl">
+<div class="flex items-center space-x-2.5 px-2">
+<div class="w-8 h-8 rounded-full bg-secondary-container flex items-center justify-center text-on-secondary-container">
+<span class="material-symbols-outlined text-[18px]">timer</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary block">Estimasi Respon</span>
+<span class="font-label-lg text-label-lg text-on-surface" id="countdown-timer">02:43 detik</span>
+</div>
+</div>
+<div class="flex items-center space-x-2.5 px-2">
+<div class="w-8 h-8 rounded-full bg-tertiary-fixed flex items-center justify-center text-on-tertiary-fixed">
+<span class="material-symbols-outlined text-[18px]">payments</span>
+</div>
+<div>
+<span class="font-label-sm text-label-sm text-secondary block">Total Escrow</span>
+<span class="font-label-lg text-label-lg text-primary-container">Rp 55.000</span>
+</div>
+</div>
+</div>
+<!-- Job Quick Summary -->
+<div class="bg-surface-container-high/40 rounded-xl p-space-sm space-y-2">
+<div class="flex items-center justify-between">
+<div class="flex items-center space-x-1.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">takeout_dining</span>
+<span class="font-label-md text-label-md text-on-surface">Packing Pesanan</span>
+</div>
+<span class="font-label-sm text-label-sm bg-surface-container-lowest px-2 py-0.5 rounded-full text-secondary">Durasi 2 Jam</span>
+</div>
+<div class="flex items-center justify-between text-secondary font-body-sm text-body-sm pt-1">
+<span class="">Upah Bersih Pekerja: <strong>Rp 50.000</strong></span>
+<span class="">Biaya Layanan: <strong>Rp 5.000</strong></span>
+</div>
+</div>
+<!-- Escrow Safety Guarantee Tag -->
+<div class="flex items-center space-x-2 text-on-tertiary-container bg-tertiary-fixed/30 px-3 py-2 rounded-xl">
+<span class="material-symbols-outlined text-tertiary text-[18px]">verified_user</span>
+<p class="font-body-sm text-body-sm text-on-surface">Rp 55.000 aman tertahan di rekening bersama.</p>
+</div>
+</div>
+<!-- Candidates Header -->
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center space-x-2">
+<h2 class="font-headline-sm text-headline-sm text-on-surface">Pelamar yang Siap OTW</h2>
+<span class="font-label-sm text-label-sm bg-surface-container-high text-on-surface px-2 py-0.5 rounded-full">2 Mahasiswa</span>
+</div>
+<div class="flex items-center space-x-1.5">
+<span class="h-2 w-2 rounded-full bg-tertiary-container animate-pulse"></span>
+<span class="font-label-sm text-label-sm text-tertiary">Real-time</span>
+</div>
+</div>
+<!-- Candidate 1 (Primary / Best Match) -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm space-y-3 relative overflow-hidden">
+<div class="absolute top-0 right-0 bg-primary-container text-on-primary font-label-sm text-label-sm px-3 py-1 rounded-bl-xl shadow-sm flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px]" style="font-variation-settings: &quot;FILL&quot; 1;">bolt</span>
+<span class="">Rekomendasi Utama</span>
+</div>
+<div class="flex items-start space-x-3 pt-1">
+<div class="relative w-12 h-12 flex-shrink-0">
+<img class="w-12 h-12 rounded-full object-cover shadow-sm" data-alt="A portrait photo of an Indonesian male university student named Bagas wearing a neat campus flannel shirt, bright friendly smile, soft natural lighting indoors" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCi3tV6r-RHNMV6rRPby2kvpXdlCw3of4XJzTR3Zh7e1N8x4lv60JtJcPbqGhZsjXKofu3xlRA-9SO5g5i6WaCs9OHNJ38CvNsyQJNzZIGUQZsMMWWbuevK8Dprz75ITBMMFR5eV6ux5nUoUuBK7j7Z17LQhhj4SSjSIKQC19NWqeD2cbirVUZInZOy2dd_v3cS5DB4-CBhf6TpRPlJSqUS-EPn1Ky2jot-h4_ql3FsKiAZl4v4o5xRjg">
+<div class="absolute -bottom-1 -right-1 bg-surface-container-lowest rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-tertiary-container text-[16px]" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0 pr-16">
+<div class="flex items-center space-x-1.5">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Bagas P.</h3>
+<span class="font-label-sm text-label-sm text-secondary truncate">• FMIPA</span>
+</div>
+<div class="flex items-center space-x-3 mt-1">
+<div class="flex items-center space-x-0.5 text-on-surface">
+<span class="material-symbols-outlined text-primary-container text-[15px]" style="font-variation-settings: &quot;FILL&quot; 1;">star</span>
+<span class="font-label-md text-label-md">4.9</span>
+<span class="font-body-sm text-body-sm text-secondary">(24 tugas)</span>
+</div>
+<div class="flex items-center space-x-1 text-secondary">
+<span class="material-symbols-outlined text-[15px]">directions_walk</span>
+<span class="font-body-sm text-body-sm font-label-md">350m (5 mnt)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Candidate Tags -->
+<div class="flex flex-wrap gap-1.5 pt-1">
+<span class="font-label-sm text-label-sm bg-surface-container-low text-on-surface px-2.5 py-1 rounded-full flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px] text-primary">restaurant</span>
+<span class="">Sering bantu di F&amp;B</span>
+</span>
+<span class="font-label-sm text-label-sm bg-tertiary-fixed/30 text-on-tertiary-container px-2.5 py-1 rounded-full flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px] text-tertiary">check_circle</span>
+<span class="">Kehadiran 100%</span>
+</span>
+</div>
+<!-- Candidate Actions -->
+<div class="flex items-center space-x-2 pt-1">
+<button aria-label="Lihat Profil" class="w-11 h-11 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center hover:bg-surface-container transition-colors flex-shrink-0" onclick="alert('Membuka profil lengkap Bagas')">
+<span class="material-symbols-outlined text-[20px]">person_search</span>
+</button>
+<button aria-label="Chat" class="w-11 h-11 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center hover:bg-surface-container transition-colors flex-shrink-0" onclick="alert('Membuka pesan instan dengan Bagas')">
+<span class="material-symbols-outlined text-[20px]">chat</span>
+</button>
+<button class="flex-1 h-11 rounded-full bg-primary-container text-on-primary font-label-lg text-label-lg flex items-center justify-center space-x-1.5 shadow-sm active:scale-[0.98] transition-transform" onclick="acceptCandidate('Bagas')">
+<span class="">Terima Pekerja Ini</span>
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Candidate 2 -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm space-y-3">
+<div class="flex items-start space-x-3">
+<div class="relative w-12 h-12 flex-shrink-0">
+<img class="w-12 h-12 rounded-full object-cover shadow-sm" data-alt="A smiling Indonesian female university student named Dinda wearing casual denim jacket and hijab, bright natural daylight on a modern campus park bench" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZNnGo4L9y1tnDkjvMHsoLEFwgcSfaduWmQWOYKxlIjARt_zRrIwl5aoiakHUlyzs3-_TJoMSt2AOmsSaL8dH0j4cQZSONm9zd5dmod7DlvVnGJjvpduFDjoQItzN-6v7rPJlNvsdjueULMHndevKDEIoWP8rSrhCRAK7QA6KGHij2lO_tIz0qvx-cWCRPrtC_qD3M_sd2pCxR3DHlSfgbz4S84rfMD42O3iR5NZDhv0xR_WqYLHtcnA">
+<div class="absolute -bottom-1 -right-1 bg-surface-container-lowest rounded-full p-0.5 shadow-sm">
+<span class="material-symbols-outlined text-tertiary-container text-[16px]" style="font-variation-settings: &quot;FILL&quot; 1;">check_circle</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center space-x-1.5">
+<h3 class="font-label-lg text-label-lg text-on-surface truncate">Dinda R.</h3>
+<span class="font-label-sm text-label-sm text-secondary truncate">• FIS</span>
+</div>
+<div class="flex items-center space-x-3 mt-1">
+<div class="flex items-center space-x-0.5 text-on-surface">
+<span class="material-symbols-outlined text-primary-container text-[15px]" style="font-variation-settings: &quot;FILL&quot; 1;">star</span>
+<span class="font-label-md text-label-md">4.8</span>
+<span class="font-body-sm text-body-sm text-secondary">(12 tugas)</span>
+</div>
+<div class="flex items-center space-x-1 text-secondary">
+<span class="material-symbols-outlined text-[15px]">near_me</span>
+<span class="font-body-sm text-body-sm font-label-md">600m</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Candidate Tags -->
+<div class="flex flex-wrap gap-1.5 pt-1">
+<span class="font-label-sm text-label-sm bg-surface-container-low text-on-surface px-2.5 py-1 rounded-full flex items-center space-x-1">
+<span class="material-symbols-outlined text-[13px] text-tertiary">pace</span>
+<span class="">Ready langsung berangkat</span>
+</span>
+</div>
+<!-- Candidate Actions -->
+<div class="flex items-center space-x-2 pt-1">
+<button aria-label="Lihat Profil" class="w-11 h-11 rounded-full bg-surface-container-low text-on-surface flex items-center justify-center hover:bg-surface-container transition-colors flex-shrink-0" onclick="alert('Membuka profil lengkap Dinda')">
+<span class="material-symbols-outlined text-[20px]">person_search</span>
+</button>
+<button class="flex-1 h-11 rounded-full bg-surface-container-high text-on-surface font-label-lg text-label-lg flex items-center justify-center space-x-1.5 hover:bg-surface-container-highest transition-colors active:scale-[0.98]" onclick="acceptCandidate('Dinda')">
+<span class="">Terima Pekerja</span>
+</button>
+</div>
+</div>
+<!-- Smart Controls & Quick Automation -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm space-y-3">
+<div class="flex items-center justify-between">
+<div class="space-y-0.5 pr-4">
+<div class="flex items-center space-x-1.5">
+<span class="material-symbols-outlined text-primary-container text-[18px]">auto_awesome</span>
+<span class="font-label-md text-label-md text-on-surface">Auto-Match Kilat</span>
+</div>
+<p class="font-body-sm text-body-sm text-secondary">Otomatis terima kandidat tercepat dengan rating di atas 4.8</p>
+</div>
+<!-- Interactive Toggle -->
+<button aria-checked="false" class="w-12 h-6 bg-surface-container-highest rounded-full p-0.5 transition-colors relative flex items-center" id="toggle-automatch" onclick="toggleAutoMatch(this)" role="switch">
+<div class="w-5 h-5 bg-surface-container-lowest rounded-full shadow-sm transform transition-transform translate-x-0"></div>
+</button>
+</div>
+</div>
+<!-- Cancellation & Balance Refund Control -->
+<div class="pt-2 flex flex-col items-center space-y-2">
+<button class="font-label-md text-label-md text-secondary hover:text-error transition-colors flex items-center space-x-1 py-1" onclick="openCancelModal()">
+<span class="material-symbols-outlined text-[16px]">close</span>
+<span class="">Batalkan Lowongan (Pengembalian Saldo 100%)</span>
+</button>
+</div>
+<!-- Guarantee Help Callout -->
+<div class="bg-surface-container-low rounded-2xl p-space-md flex items-start space-x-3">
+<span class="material-symbols-outlined text-secondary text-[22px] mt-0.5">verified_user</span>
+<div class="space-y-1">
+<span class="font-label-md text-label-md text-on-surface block">Jaminan Tanpa Risiko</span>
+<p class="font-body-sm text-body-sm text-secondary leading-relaxed">
+        Jika dalam 10 menit tidak ada pelamar yang cocok, lowongan otomatis ditutup dan saldo&nbsp;&nbsp;<span class="font-label-md text-on-surface">Rp 55.000</span> kembali penuh ke dompet toko Anda.
+      </p>
+</div>
+</div>
+<!-- Cancel Confirmation Modal Backdrop -->
+<div class="fixed inset-0 bg-on-surface/40 backdrop-blur-sm z-50 hidden flex items-end justify-center p-space-md" id="cancel-modal">
+<div class="bg-surface-container-lowest rounded-2xl w-full max-w-sm p-space-md shadow-xl space-y-4 animate-in slide-in-from-bottom duration-200">
+<div class="w-12 h-12 rounded-full bg-error-container text-on-error-container flex items-center justify-center mx-auto">
+<span class="material-symbols-outlined text-[26px]">cancel</span>
+</div>
+<div class="text-center space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Batalkan Permintaan?</h3>
+<p class="font-body-sm text-body-sm text-secondary">
+          Lowongan akan ditutup dari radar mahasiswa. Dana escrow sebesar <span class="font-label-md text-on-surface">Rp 55.000</span> akan langsung dikembalikan ke Saldo Dompet Anda saat ini juga.
+        </p>
+</div>
+<div class="space-y-2 pt-2">
+<button class="w-full h-12 rounded-full bg-error text-on-error font-label-lg text-label-lg flex items-center justify-center active:scale-[0.98] transition-transform" onclick="confirmCancellation()">
+          Ya, Batalkan &amp; Tarik Dana
+        </button>
+<button class="w-full h-11 rounded-full bg-surface-container text-on-surface font-label-md text-label-md flex items-center justify-center" onclick="closeCancelModal()">
+          Lanjut Mencari
+        </button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  // Countdown Timer Simulation
+  let remainingSeconds = 165;
+  const timerElement = document.getElementById('countdown-timer');
+
+  const timerInterval = setInterval(() => {
+    if (remainingSeconds <= 0) {
+      clearInterval(timerInterval);
+      if (timerElement) timerElement.textContent = "00:00 detik";
+      return;
+    }
+    remainingSeconds--;
+    const mins = String(Math.floor(remainingSeconds / 60)).padStart(2, '0');
+    const secs = String(remainingSeconds % 60).padStart(2, '0');
+    if (timerElement) {
+      timerElement.textContent = `${mins}:${secs} detik`;
+    }
+  }, 1000);
+
+  // Toggle Auto-Match
+  function toggleAutoMatch(btn) {
+    const isChecked = btn.getAttribute('aria-checked') === 'true';
+    const indicator = btn.querySelector('div');
+    if (!isChecked) {
+      btn.setAttribute('aria-checked', 'true');
+      btn.classList.remove('bg-surface-container-highest');
+      btn.classList.add('bg-primary-container');
+      indicator.classList.add('translate-x-6');
+      indicator.classList.remove('translate-x-0');
+    } else {
+      btn.setAttribute('aria-checked', 'false');
+      btn.classList.add('bg-surface-container-highest');
+      btn.classList.remove('bg-primary-container');
+      indicator.classList.remove('translate-x-6');
+      indicator.classList.add('translate-x-0');
+    }
+  }
+
+  // Accept Candidate Action
+  function acceptCandidate(name) {
+    alert(`Pekerja ${name} berhasil diterima! Pesanan berpindah ke status 'Menuju Lokasi Toko'.`);
+  }
+
+  // Cancellation Modal Handlers
+  function openCancelModal() {
+    const modal = document.getElementById('cancel-modal');
+    if (modal) modal.classList.remove('hidden');
+  }
+
+  function closeCancelModal() {
+    const modal = document.getElementById('cancel-modal');
+    if (modal) modal.classList.add('hidden');
+  }
+
+  function confirmCancellation() {
+    alert('Lowongan dibatalkan. Rp 55.000 telah dikembalikan penuh ke dompet Anda.');
+    closeCancelModal();
+    if (window.history && window.history.length > 1) {
+      window.history.back();
+    }
+  }
+</script></main>
+
+
+
+
+</body></html>
