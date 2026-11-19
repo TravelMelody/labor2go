@@ -11,7 +11,8 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
 - Jangan pernah mengubah saldo wallets dari client. Perubahan uang hanya lewat route handler server dengan service role key (hanya di server).
 - Jangan commit .env.local. Kerjakan satu layar per tugas dan sebutkan file yang diubah.
 - Jangan pernah menampilkan, mencetak, atau meng-commit isi .env.local atau API key.
-
+- Setiap tabel/view baru di schema public WAJIB disertai GRANT eksplisit ke role
+  authenticated (secukupnya) plus RLS. Tabel baru tidak otomatis terbuka ke Data API.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.
