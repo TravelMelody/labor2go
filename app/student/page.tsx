@@ -2,69 +2,108 @@
 
 import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  GraduationCap,
-  LogOut,
-  Briefcase,
+  Search,
+  SlidersHorizontal,
+  Flame,
+  CheckCircle2,
   Wallet,
+  Banknote,
+  Utensils,
+  Receipt,
+  Package,
+  Sparkles,
+  Briefcase,
+  LogOut,
   Bell,
-  Loader2,
-  Clock,
-  CheckCircle,
-  Tag,
-  School,
+  ArrowRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { CAMPUS } from '@/lib/campus'
+import { formatRupiah, getFirstName } from '@/lib/format'
+import { JobCard, type JobFeedItem } from '@/components/student/JobCard'
 
-export default function StudentDashboardPage() {
+interface StudentData {
+  fullName: string
+  university: string
+  level: number
+  isVerified: boolean
+  walletBalance: number
+}
+
+export default function StudentHomePage() {
   const router = useRouter()
   const supabase = createClient()
-  const [userEmail, setUserEmail] = useState<string | null>(null)
-  const [userName, setUserName] = useState<string | null>(null)
-  const [isVerified, setIsVerified] = useState<boolean>(false)
-  const [university, setUniversity] = useState<string | null>(null)
-  const [skills, setSkills] = useState<string[]>([])
+
+  const [student, setStudent] = useState<StudentData | null>(null)
+  const [jobs, setJobs] = useState<JobFeedItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   useEffect(() => {
-    async function loadUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
+    async function fetchHomeData() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
 
-      if (user) {
-        setUserEmail(user.email ?? null)
+        if (!user) {
+          router.push('/login?redirectTo=/student')
+          return
+        }
 
-        // Baca profiles (full_name, verified)
+        // 1. Ambil data profil dasar
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, verified')
+          .select('full_name, verified, role')
           .eq('id', user.id)
           .maybeSingle()
 
-        setUserName(
-          profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa'
-        )
-        setIsVerified(Boolean(profile?.verified))
-
-        // Baca data student_profiles
+        // 2. Ambil data profil mahasiswa
         const { data: studentProfile } = await supabase
           .from('student_profiles')
-          .select('university, skills')
+          .select('university, level')
           .eq('id', user.id)
           .maybeSingle()
 
-        if (studentProfile) {
-          setUniversity(studentProfile.university || null)
-          setSkills(studentProfile.skills || [])
+        // 3. Ambil saldo dompet mahasiswa (hanya membaca wallets.balance)
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        setStudent({
+          fullName:
+            profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa',
+          university:
+            studentProfile?.university || CAMPUS.name,
+          level: studentProfile?.level || 1,
+          isVerified: Boolean(profile?.verified),
+          walletBalance: wallet?.balance ? Number(wallet.balance) : 0,
+        })
+
+        // 4. Ambil 5 lowongan terbaru HANYA dari view jobs_feed (urut created_at desc)
+        const { data: feedData, error: feedError } = await supabase
+          .from('jobs_feed')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5)
+
+        if (!feedError && feedData) {
+          setJobs(feedData as JobFeedItem[])
         }
+      } catch (err) {
+        console.error('Gagal memuat data beranda mahasiswa:', err)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
 
-    loadUser()
-  }, [supabase])
+    fetchHomeData()
+  }, [supabase, router])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -72,136 +111,296 @@ export default function StudentDashboardPage() {
     router.refresh()
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FF]">
-        <Loader2 className="w-6 h-6 animate-spin text-[#FF6B00]" />
-      </div>
-    )
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const query = searchQuery.trim()
+    if (query) {
+      router.push(`/student/explore?q=${encodeURIComponent(query)}`)
+    } else {
+      router.push('/student/explore')
+    }
+  }
+
+  const handleSearchFocus = () => {
+    // Arahkan ke /student/explore saat difokus
+    if (searchQuery.trim()) {
+      router.push(`/student/explore?q=${encodeURIComponent(searchQuery.trim())}`)
+    } else {
+      router.push('/student/explore')
+    }
   }
 
   return (
-    <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col px-4 pt-6 pb-8 bg-[#F8F9FF]">
-      {/* Top Bar */}
-      <header className="flex items-center justify-between mb-5">
-        <Image
-          src="/logo.png"
-          alt="Labor2Go"
-          width={130}
-          height={34}
-          className="h-8 w-auto object-contain"
-          priority
-        />
-        <button
-          onClick={handleLogout}
-          type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
-        >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Keluar</span>
-        </button>
+    <div className="flex-1 w-full flex flex-col bg-[#F8F9FF]">
+      {/* Sticky Header Top Bar */}
+      <header className="sticky top-0 z-40 w-full bg-[#F8F9FF]/90 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="Labor2Go"
+            width={120}
+            height={32}
+            className="h-7 w-auto object-contain"
+            priority
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label="Notifikasi"
+            onClick={() => alert('Fitur notifikasi segera hadir')}
+            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-95 transition-colors"
+          >
+            <Bell className="w-4.5 h-4.5" />
+          </button>
+          <button
+            type="button"
+            onClick={handleLogout}
+            title="Keluar"
+            aria-label="Keluar akun"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 active:scale-95 transition-colors"
+          >
+            <LogOut className="w-4.5 h-4.5" />
+          </button>
+        </div>
       </header>
 
-      {/* Verification Status Alert (Berdasarkan profiles.verified) */}
-      {!isVerified ? (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-xs mb-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-            <Clock className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-xs font-bold text-amber-900">
-                Akun kamu menunggu verifikasi admin
-              </span>
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            </div>
-            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
-              Foto KTM dan data kamu sedang ditinjau oleh tim Labor2Go. Kamu tetap dapat melihat lowongan yang tersedia.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 mb-4 flex items-center gap-2.5">
-          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span className="text-xs font-bold text-emerald-800">
-            Akun dan KTM Terverifikasi
-          </span>
-        </div>
-      )}
-
-      {/* Profile Card */}
-      <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center font-bold text-lg shrink-0">
-            <GraduationCap className="w-6 h-6" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFEDE0] text-[#FF6B00] text-[10px] font-bold">
-                Mahasiswa
-              </span>
-              {isVerified && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" />
-                  KTM Terverifikasi
-                </span>
-              )}
-            </div>
-            <h2 className="text-base font-bold text-[#0B1C30] truncate">
-              {userName || 'Mahasiswa Labor2Go'}
-            </h2>
-            <p className="text-xs text-gray-500 truncate">{userEmail}</p>
-          </div>
-        </div>
-
-        {/* University & Skills Info */}
-        {(university || skills.length > 0) && (
-          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
-            {university && (
-              <div className="flex items-center gap-1.5 text-xs text-gray-600">
-                <School className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
-                <span className="truncate font-medium">{university}</span>
+      {/* Main Content Area */}
+      <main className="flex-1 px-4 pt-4 pb-6 flex flex-col gap-5">
+        {/* Loading Skeleton */}
+        {loading ? (
+          <div className="flex flex-col gap-4 animate-pulse">
+            {/* Top Card Skeleton */}
+            <div className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] flex flex-col gap-4 border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-gray-200" />
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-28 h-4 rounded bg-gray-200" />
+                  </div>
+                </div>
+                <div className="w-16 h-6 rounded-full bg-gray-200" />
               </div>
-            )}
-            {skills.length > 0 && (
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Tag className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                {skills.map((s) => (
-                  <span
-                    key={s}
-                    className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-medium"
-                  >
-                    {s}
-                  </span>
+              <div className="w-full h-11 rounded-full bg-gray-100" />
+              <div className="w-full h-16 rounded-2xl bg-gray-100" />
+            </div>
+
+            {/* Categories Skeleton */}
+            <div className="flex flex-col gap-2">
+              <div className="w-24 h-4 rounded bg-gray-200" />
+              <div className="grid grid-cols-4 gap-2.5">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-20 rounded-2xl bg-gray-200" />
                 ))}
               </div>
-            )}
-          </div>
-        )}
-      </div>
+            </div>
 
-      {/* Placeholder Content */}
-      <div className="flex-1 flex flex-col gap-3">
-        <div className="p-5 rounded-2xl bg-white border border-gray-100 shadow-xs text-center flex flex-col items-center justify-center py-10">
-          <div className="w-14 h-14 rounded-2xl bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center mb-3">
-            <Briefcase className="w-7 h-7" />
+            {/* Jobs Feed Skeleton */}
+            <div className="flex flex-col gap-3">
+              <div className="w-48 h-5 rounded bg-gray-200" />
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-28 rounded-2xl bg-gray-200" />
+              ))}
+            </div>
           </div>
-          <h3 className="text-base font-bold text-[#0B1C30] mb-1">
-            Dashboard Mahasiswa
-          </h3>
-          <p className="text-xs text-gray-500 max-w-xs leading-relaxed mb-4">
-            Modul pencarian lowongan kerja mikro, riwayat pekerjaan, dan dompet mahasiswa siap digunakan pada tugas berikutnya.
-          </p>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">
-              <Wallet className="w-3.5 h-3.5" /> Dompet Siap
-            </span>
-            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">
-              <Bell className="w-3.5 h-3.5" /> Notifikasi Aktif
-            </span>
-          </div>
-        </div>
-      </div>
+        ) : (
+          <>
+            {/* TOP CARD: Greeting, Level Badge, Search & Saldo Dompet */}
+            <section className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] flex flex-col gap-4 border border-gray-100">
+              {/* Sapaan & Badge Level */}
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-11 h-11 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center font-bold text-base shrink-0 shadow-inner">
+                    {getFirstName(student?.fullName).charAt(0)}
+                  </div>
+                  <div className="flex flex-col min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-base text-[#0B1C30] truncate">
+                        Halo, {getFirstName(student?.fullName)}
+                      </span>
+                      {student?.isVerified && (
+                        <span title="KTM Terverifikasi" className="inline-flex items-center">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500 truncate">
+                      {student?.university}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Badge Level */}
+                <div className="flex items-center gap-1 bg-[#EFF4FF] px-2.5 py-1 rounded-full text-slate-700 shrink-0 border border-blue-100/60">
+                  <Flame className="w-3.5 h-3.5 text-[#FF6B00] fill-[#FF6B00]" />
+                  <span className="text-xs font-bold text-[#0B1C30]">
+                    Level {student?.level || 1}
+                  </span>
+                </div>
+              </div>
+
+              {/* Pill-shaped Search Bar */}
+              <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
+                <Search className="w-4.5 h-4.5 text-gray-400 absolute left-3.5 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={handleSearchFocus}
+                  placeholder="Cari kerja dadakan..."
+                  className="w-full bg-[#EFF4FF]/70 text-[#0B1C30] placeholder:text-gray-400 rounded-full py-2.5 pl-10 pr-10 text-xs font-medium focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#FF6B00]/30 transition-all border border-transparent focus:border-[#FF6B00]"
+                />
+                <button
+                  type="button"
+                  aria-label="Filter lowongan"
+                  onClick={() => router.push('/student/explore')}
+                  className="absolute right-2 w-7 h-7 rounded-full bg-white flex items-center justify-center text-gray-600 hover:text-[#FF6B00] shadow-xs active:scale-95 transition-all"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                </button>
+              </form>
+
+              {/* Saldo Dompet Row */}
+              <div className="bg-[#EFF4FF]/80 rounded-2xl p-3 flex items-center justify-between border border-blue-50">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center shrink-0">
+                    <Wallet className="w-4.5 h-4.5" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[11px] text-gray-500 font-medium">Saldo Dompet</span>
+                    <span className="text-base font-extrabold text-[#0B1C30]">
+                      {formatRupiah(student?.walletBalance)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Tombol Tarik Tunai: Nonaktif "Segera hadir" */}
+                <button
+                  type="button"
+                  disabled
+                  title="Fitur Tarik Tunai Segera Hadir"
+                  className="bg-gray-200 text-gray-500 px-3 py-1.5 rounded-full text-xs font-bold cursor-not-allowed flex items-center gap-1.5 transition-colors"
+                >
+                  <Banknote className="w-3.5 h-3.5" />
+                  <span>Tarik Tunai</span>
+                  <span className="text-[9px] bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full font-medium">
+                    Segera
+                  </span>
+                </button>
+              </div>
+            </section>
+
+            {/* KATEGORI CEPAT (F&B, Kasir, Packing, Event) */}
+            <section className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-sm font-bold text-[#0B1C30]">Kategori Cepat</h2>
+                <Link
+                  href="/student/explore"
+                  className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-0.5"
+                >
+                  <span>Lihat Semua</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-4 gap-2.5">
+                {/* 1. F&B */}
+                <Link
+                  href="/student/explore?kategori=F%26B"
+                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-orange-200 active:scale-95 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFEBD8] flex items-center justify-center text-[#FF6B00] group-hover:scale-105 transition-transform shadow-inner">
+                    <Utensils className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0B1C30]">F&amp;B</span>
+                </Link>
+
+                {/* 2. Kasir */}
+                <Link
+                  href="/student/explore?kategori=Kasir"
+                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-blue-200 active:scale-95 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#DDF4FF] flex items-center justify-center text-[#36558F] group-hover:scale-105 transition-transform shadow-inner">
+                    <Receipt className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0B1C30]">Kasir</span>
+                </Link>
+
+                {/* 3. Packing */}
+                <Link
+                  href="/student/explore?kategori=Packing"
+                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-emerald-200 active:scale-95 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] flex items-center justify-center text-[#006C49] group-hover:scale-105 transition-transform shadow-inner">
+                    <Package className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0B1C30]">Packing</span>
+                </Link>
+
+                {/* 4. Event */}
+                <Link
+                  href="/student/explore?kategori=Event"
+                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-purple-200 active:scale-95 transition-all group"
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-[#F3E8FF] flex items-center justify-center text-[#7E22CE] group-hover:scale-105 transition-transform shadow-inner">
+                    <Sparkles className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <span className="text-xs font-bold text-[#0B1C30]">Event</span>
+                </Link>
+              </div>
+            </section>
+
+            {/* SECTION: Pekerjaan Tersedia Sekarang (5 Lowongan Terbaru) */}
+            <section className="flex flex-col gap-3">
+              {/* Header Bagian dengan tautan "Lihat Semua" */}
+              <div className="flex items-center justify-between px-1">
+                <div className="flex flex-col">
+                  <h2 className="text-base font-bold text-[#0B1C30] tracking-tight">
+                    Pekerjaan Tersedia Sekarang
+                  </h2>
+                  <p className="text-xs text-gray-500">Pekerjaan santai dekat kampus</p>
+                </div>
+                <Link
+                  href="/student/explore"
+                  className="text-xs font-bold text-[#FF6B00] hover:underline flex items-center gap-0.5 shrink-0"
+                >
+                  <span>Lihat Semua</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+
+              {/* Daftar Kartu Lowongan Menggunakan Komponen Bersama JobCard */}
+              {jobs.length === 0 ? (
+                /* Empty State Ramah */
+                <div className="p-6 bg-white rounded-3xl border border-gray-100 shadow-xs text-center flex flex-col items-center justify-center py-8">
+                  <div className="w-14 h-14 rounded-2xl bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center mb-3">
+                    <Briefcase className="w-7 h-7 stroke-[1.8]" />
+                  </div>
+                  <h3 className="text-sm font-bold text-[#0B1C30] mb-1">
+                    Belum Ada Lowongan Aktif
+                  </h3>
+                  <p className="text-xs text-gray-500 max-w-xs leading-relaxed mb-4">
+                    UMKM di sekitar kampus belum memposting pekerjaan baru saat ini. Silakan cek berkala atau gunakan pencarian eksplor.
+                  </p>
+                  <Link
+                    href="/student/explore"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#FF6B00] text-white text-xs font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-transform"
+                  >
+                    <span>Cari di Eksplor</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {jobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </main>
     </div>
   )
 }
