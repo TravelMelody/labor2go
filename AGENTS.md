@@ -16,6 +16,10 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
 - Tabel applications: dari client, mahasiswa hanya boleh INSERT dengan status 'pending' dan
   meng-UPDATE status ke 'withdrawn' (batal) atau kembali ke 'pending'. Hanya pemilik lowongan yang
   boleh mengubah pending -> accepted/rejected. Jangan pernah mengirim status lain dari client.
+- Terima pelamar HANYA lewat supabase.rpc('accept_application', { p_application_id }).
+  Jangan pernah mengubah wallets/payments/wallet_transactions dari client, dan jangan
+  meng-update applications.status = 'accepted' langsung. Biaya layanan dibaca dari tabel
+  platform_settings (key 'service_fee_per_worker'), bukan hardcode.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

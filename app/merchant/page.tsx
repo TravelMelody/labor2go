@@ -219,7 +219,7 @@ export default function MerchantDashboardPage() {
   }
 
   return (
-    <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col px-4 pt-6 pb-12 bg-[#F8F9FF]">
+    <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col px-4 pt-6 pb-24 bg-[#F8F9FF]">
       {/* Toast Notifikasi Sukses */}
       {showToast && (
         <div className="fixed top-4 left-4 right-4 max-w-[388px] mx-auto z-50 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shadow-lg flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
@@ -423,7 +423,7 @@ export default function MerchantDashboardPage() {
             {jobs.map((job) => (
               <Link
                 key={job.id}
-                href={`/jobs/${job.id}`}
+                href={`/merchant/jobs/${job.id}`}
                 className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs flex flex-col gap-2.5 cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.99] transition-all group"
               >
                 <div className="flex items-start justify-between gap-2">

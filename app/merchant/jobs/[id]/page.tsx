@@ -1,92 +1,263 @@
 import React, { Suspense } from 'react'
-import Link from 'next/link'
-import { ArrowLeft, Users, Clock } from 'lucide-react'
+import { notFound, redirect } from 'next/navigation'
+import { connection } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
+import {
+  MerchantJobApplicantsView,
+  type MerchantJobInfo,
+  type ApplicantItem,
+} from '@/components/merchant/MerchantJobApplicantsView'
 
-export const metadata = {
-  title: 'Kelola Pelamar – Labor2Go',
-  description: 'Kelola pelamar lowongan UMKM Labor2Go',
+interface PageProps {
+  params: Promise<{ id: string }>
 }
 
-async function MerchantManageApplicantsContent({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
-  const { id } = await params
+interface ProfileRecord {
+  id: string
+  full_name: string | null
+  phone: string | null
+  verified: boolean
+}
 
+interface StudentProfileRecord {
+  id: string
+  university: string | null
+  skills: string[] | null
+  level: number | null
+  completed_jobs: number | null
+}
+
+interface ProfileRatingRecord {
+  user_id: string
+  avg_rating: number | null
+  review_count: number | null
+}
+
+interface ApplicationRow {
+  id: string
+  job_id: string
+  student_id: string
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  created_at: string
+}
+
+export async function generateMetadata({ params }: PageProps) {
+  const { id } = await params
+  return {
+    title: 'Kelola Pelamar – Labor2Go',
+    description: `Kelola pelamar dan terima pekerja lowongan Labor2Go (ID: ${id})`,
+  }
+}
+
+function MerchantApplicantsSkeleton() {
   return (
-    <div className="w-full max-w-[420px] min-h-screen bg-[#F8F9FF] flex flex-col px-4 pt-6 pb-8 shadow-xs">
-      {/* Top Bar */}
-      <div className="flex items-center gap-3 mb-6">
-        <Link
-          href={`/jobs/${id}`}
-          className="w-10 h-10 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-[#0B1C30] hover:bg-gray-50 active:scale-95 transition-all shadow-xs"
-          aria-label="Kembali ke detail lowongan"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </Link>
-        <div>
-          <h1 className="text-base font-bold text-[#0B1C30]">Kelola Pelamar</h1>
-          <p className="text-[11px] text-gray-500 truncate max-w-[240px]">
-            ID Lowongan: {id}
-          </p>
+    <div className="flex-1 flex flex-col px-4 pt-5 pb-24 animate-pulse">
+      {/* Top Header skeleton */}
+      <div className="flex items-center gap-3 mb-5">
+        <div className="w-10 h-10 rounded-full bg-gray-200" />
+        <div className="space-y-1.5 flex-1">
+          <div className="w-36 h-4 bg-gray-200 rounded-md" />
+          <div className="w-48 h-3 bg-gray-100 rounded-md" />
         </div>
       </div>
 
-      {/* Placeholder Box */}
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-white rounded-3xl border border-gray-100 shadow-xs my-auto">
-        <div className="w-16 h-16 rounded-2xl bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center mb-4 shadow-inner">
-          <Users className="w-8 h-8 stroke-[2]" />
+      {/* Summary Card skeleton */}
+      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-sm mb-5 space-y-3">
+        <div className="flex justify-between items-center">
+          <div className="w-24 h-4 bg-gray-200 rounded-full" />
+          <div className="w-24 h-5 bg-gray-200 rounded-full" />
         </div>
+        <div className="w-3/4 h-6 bg-gray-200 rounded-lg" />
+        <div className="w-full h-8 bg-gray-100 rounded-xl" />
+        <div className="w-full h-20 bg-gray-50 rounded-2xl" />
+        <div className="w-full h-12 bg-gray-100 rounded-xl" />
+      </div>
 
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-200 text-[#FF6B00] text-xs font-bold mb-3">
-          <Clock className="w-3.5 h-3.5" />
-          <span>Segera hadir</span>
-        </div>
-
-        <h2 className="text-base font-bold text-[#0B1C30] mb-2">
-          Manajemen Pelamar Mahasiswa
-        </h2>
-
-        <p className="text-xs text-gray-500 max-w-xs leading-relaxed mb-6">
-          Fitur seleksi, persetujuan (accept), dan penolakan (reject) pelamar mahasiswa akan segera hadir untuk memudahkan pemilik usaha.
-        </p>
-
-        <div className="flex flex-col gap-2 w-full max-w-xs">
-          <Link
-            href={`/jobs/${id}`}
-            className="w-full py-2.5 bg-[#FF6B00] text-white rounded-full text-xs font-bold shadow-md shadow-orange-500/20 active:scale-95 transition-transform text-center"
-          >
-            Lihat Tampilan Lowongan
-          </Link>
-          <Link
-            href="/merchant"
-            className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full text-xs font-bold active:scale-95 transition-colors text-center"
-          >
-            Kembali ke Dashboard Merchant
-          </Link>
-        </div>
+      {/* Applicants List skeleton */}
+      <div className="space-y-3">
+        <div className="w-32 h-4 bg-gray-200 rounded-md mb-2" />
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 h-32" />
+        <div className="bg-white rounded-2xl p-4 border border-gray-100 h-32" />
       </div>
     </div>
   )
 }
 
-export default function MerchantManageApplicantsPage({
-  params,
-}: {
-  params: Promise<{ id: string }>
-}) {
+async function MerchantManageApplicantsContent({ params }: PageProps) {
+  const { id } = await params
+  await connection()
+
+  const supabase = await createClient()
+
+  // 1. Verifikasi Autentikasi Pengguna
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    redirect(`/login?redirectTo=/merchant/jobs/${id}`)
+  }
+
+  // 2. Proteksi Peran: Hanya UMKM yang boleh mengakses
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    console.error('Error saat membaca role profil UMKM:', profileError)
+  }
+
+  const role = profile?.role || user.user_metadata?.role
+  if (role !== 'umkm') {
+    redirect('/student')
+  }
+
+  // 3. Baca Data Lowongan (Wajib milik user; 404 jika bukan miliknya atau tidak ada)
+  const { data: jobData, error: jobError } = await supabase
+    .from('jobs')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle()
+
+  if (jobError) {
+    console.error('Error saat membaca lowongan merchant:', jobError)
+  }
+
+  if (!jobData || jobData.umkm_id !== user.id) {
+    notFound()
+  }
+
+  // 4. Baca Saldo Dompet Milik User
+  const { data: walletData, error: walletError } = await supabase
+    .from('wallets')
+    .select('balance')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (walletError) {
+    console.error('Error saat membaca wallet merchant:', walletError)
+  }
+  const walletBalance = Number(walletData?.balance || 0)
+
+  // 5. Baca Biaya Layanan dari platform_settings (key: service_fee_per_worker)
+  const { data: settingsData, error: settingsError } = await supabase
+    .from('platform_settings')
+    .select('int_value')
+    .eq('key', 'service_fee_per_worker')
+    .maybeSingle()
+
+  if (settingsError) {
+    console.error('Error saat membaca platform_settings biaya layanan:', settingsError)
+  }
+  const serviceFee = Number(settingsData?.int_value ?? 5000)
+
+  // 6. Baca Applications untuk Job Ini
+  const { data: appsData, error: appsError } = await supabase
+    .from('applications')
+    .select('*')
+    .eq('job_id', id)
+    .order('created_at', { ascending: false })
+
+  if (appsError) {
+    console.error('Error saat membaca data applications:', appsError)
+  }
+
+  // 7. Ambil info pelamar: profiles, student_profiles, dan profile_ratings
+  const rawApps = (appsData || []) as ApplicationRow[]
+  const studentIds = Array.from(new Set(rawApps.map((a) => a.student_id)))
+
+  let profilesMap: Record<string, ProfileRecord> = {}
+  let studentProfilesMap: Record<string, StudentProfileRecord> = {}
+  let ratingsMap: Record<string, ProfileRatingRecord> = {}
+
+  if (studentIds.length > 0) {
+    const [profilesRes, studentProfilesRes, ratingsRes] = await Promise.all([
+      supabase
+        .from('profiles')
+        .select('id, full_name, phone, verified')
+        .in('id', studentIds),
+      supabase
+        .from('student_profiles')
+        .select('id, university, skills, level, completed_jobs')
+        .in('id', studentIds),
+      supabase
+        .from('profile_ratings')
+        .select('user_id, avg_rating, review_count')
+        .in('user_id', studentIds),
+    ])
+
+    if (profilesRes.error) {
+      console.error('Error saat membaca profiles pelamar di server:', profilesRes.error)
+    } else if (profilesRes.data) {
+      profilesMap = (profilesRes.data as ProfileRecord[]).reduce((acc, curr) => {
+        acc[curr.id] = curr
+        return acc
+      }, {} as Record<string, ProfileRecord>)
+    }
+
+    if (studentProfilesRes.error) {
+      console.error('Error saat membaca student_profiles di server:', studentProfilesRes.error)
+    } else if (studentProfilesRes.data) {
+      studentProfilesMap = (studentProfilesRes.data as StudentProfileRecord[]).reduce((acc, curr) => {
+        acc[curr.id] = curr
+        return acc
+      }, {} as Record<string, StudentProfileRecord>)
+    }
+
+    if (ratingsRes.error) {
+      console.error('Error saat membaca profile_ratings di server:', ratingsRes.error)
+    } else if (ratingsRes.data) {
+      ratingsMap = (ratingsRes.data as ProfileRatingRecord[]).reduce((acc, curr) => {
+        acc[curr.user_id] = curr
+        return acc
+      }, {} as Record<string, ProfileRatingRecord>)
+    }
+  }
+
+  const initialApplications: ApplicantItem[] = rawApps.map((app) => {
+    const prof = profilesMap[app.student_id]
+    const sp = studentProfilesMap[app.student_id]
+    const rat = ratingsMap[app.student_id]
+
+    return {
+      id: app.id,
+      job_id: app.job_id,
+      student_id: app.student_id,
+      status: app.status,
+      created_at: app.created_at,
+      student: {
+        id: app.student_id,
+        full_name: prof?.full_name || 'Mahasiswa',
+        phone: prof?.phone || null,
+        verified: Boolean(prof?.verified),
+        university: sp?.university || 'Universitas Negeri Semarang',
+        skills: Array.isArray(sp?.skills) ? sp.skills : [],
+        level: sp?.level ?? 1,
+        completed_jobs: sp?.completed_jobs ?? 0,
+        avg_rating: rat?.avg_rating != null ? Number(rat.avg_rating) : null,
+        review_count: rat?.review_count ?? 0,
+      },
+    }
+  })
+
   return (
-    <div className="min-h-screen bg-[#F8F9FF] text-[#0B1C30] flex flex-col items-center">
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center text-xs text-gray-400">
-            Memuat data...
-          </div>
-        }
-      >
-        <MerchantManageApplicantsContent params={params} />
-      </Suspense>
-    </div>
+    <MerchantJobApplicantsView
+      initialJob={jobData as MerchantJobInfo}
+      initialApplications={initialApplications}
+      initialWalletBalance={walletBalance}
+      initialServiceFee={serviceFee}
+      currentUserId={user.id}
+    />
+  )
+}
+
+export default function MerchantManageApplicantsPage({ params }: PageProps) {
+  return (
+    <Suspense fallback={<MerchantApplicantsSkeleton />}>
+      <MerchantManageApplicantsContent params={params} />
+    </Suspense>
   )
 }

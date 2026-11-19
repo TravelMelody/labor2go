@@ -171,3 +171,34 @@ export function isUrgentJob(startInput: string | Date): boolean {
 
   return diffMinutes > 0 && diffMinutes <= 60
 }
+
+/**
+ * Membuat tautan WhatsApp resmi (wa.me) dengan nomor yang diformat standar internasional (62).
+ */
+export function formatWhatsAppUrl(
+  phone: string | null | undefined,
+  message?: string
+): string | null {
+  if (!phone) return null
+
+  // Bersihkan karakter non-digit
+  let cleaned = phone.replace(/\D/g, '')
+
+  // Konversi awalan 08xxx menjadi 628xxx
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.slice(1)
+  } else if (cleaned.startsWith('8')) {
+    cleaned = '62' + cleaned
+  }
+
+  // Validasi panjang minimum nomor telepon Indonesia yang valid (biasanya 10-15 digit)
+  if (cleaned.length < 9) return null
+
+  const baseUrl = `https://wa.me/${cleaned}`
+  if (message && message.trim()) {
+    return `${baseUrl}?text=${encodeURIComponent(message.trim())}`
+  }
+
+  return baseUrl
+}
+
