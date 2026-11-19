@@ -18,6 +18,7 @@ import {
   Banknote,
   X,
   Calendar,
+  ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -177,19 +178,19 @@ export default function MerchantDashboardPage() {
       case 'open':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Membuka Lowongan
+            Terbuka
           </span>
         )
       case 'filled':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-            Pelamar Penuh
+            Terisi
           </span>
         )
       case 'in_progress':
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
-            Sedang Berjalan
+            Berlangsung
           </span>
         )
       case 'completed':
@@ -420,15 +421,19 @@ export default function MerchantDashboardPage() {
           /* List Lowongan */
           <div className="flex flex-col gap-3">
             {jobs.map((job) => (
-              <div
+              <Link
                 key={job.id}
-                className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs flex flex-col gap-2.5 transition-all hover:border-gray-200"
+                href={`/jobs/${job.id}`}
+                className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs flex flex-col gap-2.5 cursor-pointer hover:border-gray-200 hover:shadow-sm active:scale-[0.99] transition-all group"
               >
                 <div className="flex items-start justify-between gap-2">
                   <h4 className="text-sm font-bold text-[#0B1C30] line-clamp-1">
                     {job.title}
                   </h4>
-                  {getStatusBadge(job.status)}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {getStatusBadge(job.status)}
+                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-600 group-hover:translate-x-0.5 transition-all" />
+                  </div>
                 </div>
 
                 {job.description && (
@@ -457,7 +462,7 @@ export default function MerchantDashboardPage() {
                     </div>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         )}

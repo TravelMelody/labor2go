@@ -129,3 +129,45 @@ export function getFirstName(fullName: string | null | undefined): string {
   const first = fullName.trim().split(/\s+/)[0]
   return first.charAt(0).toUpperCase() + first.slice(1)
 }
+
+/**
+ * Menentukan badge Shift berdasarkan jam mulai dalam zona waktu WIB (Asia/Jakarta):
+ * - Jam < 12: "Shift Pagi"
+ * - Jam 12 s/d 17: "Shift Siang"
+ * - Jam >= 18: "Shift Malam"
+ */
+export function getShiftBadge(startInput: string | Date): string {
+  const date = typeof startInput === 'string' ? new Date(startInput) : startInput
+  if (isNaN(date.getTime())) return 'Shift Pagi'
+
+  const hourWIB = parseInt(
+    new Intl.DateTimeFormat('id-ID', {
+      hour: 'numeric',
+      hour12: false,
+      timeZone: 'Asia/Jakarta',
+    }).format(date),
+    10
+  )
+
+  if (hourWIB < 12) {
+    return 'Shift Pagi'
+  } else if (hourWIB >= 12 && hourWIB < 18) {
+    return 'Shift Siang'
+  } else {
+    return 'Shift Malam'
+  }
+}
+
+/**
+ * Menentukan apakah pekerjaan mendesak (mulai kurang dari 60 menit dari sekarang).
+ */
+export function isUrgentJob(startInput: string | Date): boolean {
+  const start = typeof startInput === 'string' ? new Date(startInput) : startInput
+  if (isNaN(start.getTime())) return false
+
+  const now = Date.now()
+  const diffMs = start.getTime() - now
+  const diffMinutes = Math.floor(diffMs / (1000 * 60))
+
+  return diffMinutes > 0 && diffMinutes <= 60
+}

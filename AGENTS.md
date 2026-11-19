@@ -13,6 +13,9 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
 - Jangan pernah menampilkan, mencetak, atau meng-commit isi .env.local atau API key.
 - Setiap tabel/view baru di schema public WAJIB disertai GRANT eksplisit ke role
   authenticated (secukupnya) plus RLS. Tabel baru tidak otomatis terbuka ke Data API.
+- Tabel applications: dari client, mahasiswa hanya boleh INSERT dengan status 'pending' dan
+  meng-UPDATE status ke 'withdrawn' (batal) atau kembali ke 'pending'. Hanya pemilik lowongan yang
+  boleh mengubah pending -> accepted/rejected. Jangan pernah mengirim status lain dari client.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.
