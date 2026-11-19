@@ -1,6 +1,6 @@
 import React from 'react'
 import Link from 'next/link'
-import { Star, MapPin, Clock, Users } from 'lucide-react'
+import { Star, MapPin, Clock, Users, Zap } from 'lucide-react'
 import { CAMPUS, CampusLocation } from '@/lib/campus'
 import { getDistanceFromCampus } from '@/lib/geo'
 import { formatRupiah, formatJobScheduleWIB } from '@/lib/format'
@@ -37,6 +37,11 @@ export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
   const scheduleText = formatJobScheduleWIB(job.start_at, job.end_at)
   const hasReviews = job.review_count > 0 && job.avg_rating != null
 
+  // Hitung apakah pekerjaan butuh cepat (jam mulai kurang dari 60 menit dari sekarang)
+  const startTime = new Date(job.start_at).getTime()
+  const diffMinutes = Math.floor((startTime - Date.now()) / (1000 * 60))
+  const isUrgent = diffMinutes > 0 && diffMinutes <= 60
+
   return (
     <Link
       href={href || `/jobs/${job.id}`}
@@ -44,11 +49,20 @@ export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
     >
       {/* Kolom Kiri: Info Lowongan (flex-1, min-w-0) */}
       <div className="flex flex-col min-w-0 flex-1">
-        {/* Baris 1: Nama usaha + badge rating / baru */}
-        <div className="flex items-center gap-1.5 mb-1">
-          <span className="text-xs font-semibold text-gray-500 truncate">
+        {/* Baris 1: Nama usaha + badge kategori + badge rating / baru */}
+        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
+          <span className="text-xs font-semibold text-gray-500 truncate max-w-[130px] sm:max-w-[170px]">
             {job.business_name}
           </span>
+
+          {/* Badge Kategori (business_type) */}
+          {job.business_type && (
+            <span className="font-semibold text-[10px] px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
+              {job.business_type}
+            </span>
+          )}
+
+          {/* Badge Rating atau "Baru" */}
           {hasReviews ? (
             <div className="flex items-center gap-0.5 bg-orange-50 px-1.5 py-0.5 rounded-full text-[#FF6B00] shrink-0">
               <Star className="w-3 h-3 fill-[#FF6B00]" />
@@ -89,6 +103,14 @@ export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
             <Users className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
             <span className="truncate">Tersisa {job.slots_left} slot</span>
           </div>
+
+          {/* Badge Butuh Cepat: hanya tampil jika jam mulai kurang dari 60 menit dari sekarang */}
+          {isUrgent && (
+            <div className="flex items-center gap-1 text-[#FF6B00] font-bold mt-0.5">
+              <Zap className="w-3.5 h-3.5 text-[#FF6B00] fill-[#FF6B00] shrink-0" />
+              <span className="truncate">Butuh Cepat (Mulai {diffMinutes} mnt lagi)</span>
+            </div>
+          )}
         </div>
       </div>
 
