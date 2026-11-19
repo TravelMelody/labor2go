@@ -16,3 +16,5 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.
+
+- `jobs_feed`: View daftar lowongan aktif. Mahasiswa membaca lowongan lewat view `jobs_feed`, bukan tabel `jobs` langsung.
