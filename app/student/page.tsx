@@ -1,0 +1,207 @@
+'use client'
+
+import React, { useEffect, useState } from 'react'
+import Image from 'next/image'
+import { useRouter } from 'next/navigation'
+import {
+  GraduationCap,
+  LogOut,
+  Briefcase,
+  Wallet,
+  Bell,
+  Loader2,
+  Clock,
+  CheckCircle,
+  Tag,
+  School,
+} from 'lucide-react'
+import { createClient } from '@/lib/supabase/client'
+
+export default function StudentDashboardPage() {
+  const router = useRouter()
+  const supabase = createClient()
+  const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
+  const [isVerified, setIsVerified] = useState<boolean>(false)
+  const [university, setUniversity] = useState<string | null>(null)
+  const [skills, setSkills] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    async function loadUser() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (user) {
+        setUserEmail(user.email ?? null)
+
+        // Baca profiles (full_name, verified)
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, verified')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        setUserName(
+          profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa'
+        )
+        setIsVerified(Boolean(profile?.verified))
+
+        // Baca data student_profiles
+        const { data: studentProfile } = await supabase
+          .from('student_profiles')
+          .select('university, skills')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (studentProfile) {
+          setUniversity(studentProfile.university || null)
+          setSkills(studentProfile.skills || [])
+        }
+      }
+      setLoading(false)
+    }
+
+    loadUser()
+  }, [supabase])
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push('/login')
+    router.refresh()
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FF]">
+        <Loader2 className="w-6 h-6 animate-spin text-[#FF6B00]" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col px-4 pt-6 pb-8 bg-[#F8F9FF]">
+      {/* Top Bar */}
+      <header className="flex items-center justify-between mb-5">
+        <Image
+          src="/logo.png"
+          alt="Labor2Go"
+          width={130}
+          height={34}
+          className="h-8 w-auto object-contain"
+          priority
+        />
+        <button
+          onClick={handleLogout}
+          type="button"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors"
+        >
+          <LogOut className="w-3.5 h-3.5" />
+          <span>Keluar</span>
+        </button>
+      </header>
+
+      {/* Verification Status Alert (Berdasarkan profiles.verified) */}
+      {!isVerified ? (
+        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-xs mb-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+            <Clock className="w-5 h-5 text-amber-600" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-1">
+              <span className="text-xs font-bold text-amber-900">
+                Akun kamu menunggu verifikasi admin
+              </span>
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+            </div>
+            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
+              Foto KTM dan data kamu sedang ditinjau oleh tim Labor2Go. Kamu tetap dapat melihat lowongan yang tersedia.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 mb-4 flex items-center gap-2.5">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span className="text-xs font-bold text-emerald-800">
+            Akun dan KTM Terverifikasi
+          </span>
+        </div>
+      )}
+
+      {/* Profile Card */}
+      <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs mb-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center font-bold text-lg shrink-0">
+            <GraduationCap className="w-6 h-6" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFEDE0] text-[#FF6B00] text-[10px] font-bold">
+                Mahasiswa
+              </span>
+              {isVerified && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
+                  <CheckCircle className="w-3 h-3 text-emerald-600" />
+                  KTM Terverifikasi
+                </span>
+              )}
+            </div>
+            <h2 className="text-base font-bold text-[#0B1C30] truncate">
+              {userName || 'Mahasiswa Labor2Go'}
+            </h2>
+            <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+          </div>
+        </div>
+
+        {/* University & Skills Info */}
+        {(university || skills.length > 0) && (
+          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-col gap-2">
+            {university && (
+              <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                <School className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+                <span className="truncate font-medium">{university}</span>
+              </div>
+            )}
+            {skills.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Tag className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                {skills.map((s) => (
+                  <span
+                    key={s}
+                    className="px-2 py-0.5 rounded-md bg-gray-100 text-gray-700 text-[10px] font-medium"
+                  >
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Placeholder Content */}
+      <div className="flex-1 flex flex-col gap-3">
+        <div className="p-5 rounded-2xl bg-white border border-gray-100 shadow-xs text-center flex flex-col items-center justify-center py-10">
+          <div className="w-14 h-14 rounded-2xl bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center mb-3">
+            <Briefcase className="w-7 h-7" />
+          </div>
+          <h3 className="text-base font-bold text-[#0B1C30] mb-1">
+            Dashboard Mahasiswa
+          </h3>
+          <p className="text-xs text-gray-500 max-w-xs leading-relaxed mb-4">
+            Modul pencarian lowongan kerja mikro, riwayat pekerjaan, dan dompet mahasiswa siap digunakan pada tugas berikutnya.
+          </p>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">
+              <Wallet className="w-3.5 h-3.5" /> Dompet Siap
+            </span>
+            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gray-100 text-gray-700 text-xs font-semibold">
+              <Bell className="w-3.5 h-3.5" /> Notifikasi Aktif
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
