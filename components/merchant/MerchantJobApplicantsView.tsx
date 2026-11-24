@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -19,14 +19,18 @@ import {
   Ban,
   Check,
   X,
+  Clock,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   formatRupiah,
   formatJobScheduleWIB,
+  formatTimeWIB,
   formatWhatsAppUrl,
   getFirstName,
 } from '@/lib/format'
+import { useNow } from '@/hooks/useNow'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 export interface ApplicantStudentInfo {
   id: string
@@ -41,13 +45,23 @@ export interface ApplicantStudentInfo {
   review_count: number
 }
 
+export interface ApplicantPaymentInfo {
+  id: string
+  amount: number
+  commission: number
+  status: 'pending' | 'held' | 'released' | 'refunded'
+}
+
 export interface ApplicantItem {
   id: string
   job_id: string
   student_id: string
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  checked_in_at: string | null
+  checked_out_at: string | null
   created_at: string
   student: ApplicantStudentInfo
+  payment?: ApplicantPaymentInfo | null
 }
 
 export interface MerchantJobInfo {
@@ -85,12 +99,22 @@ interface ProfileRatingRecord {
   review_count: number | null
 }
 
+interface ApplicationPaymentRecord {
+  id: string
+  amount: number
+  commission: number
+  status: 'pending' | 'held' | 'released' | 'refunded'
+}
+
 interface ApplicationRow {
   id: string
   job_id: string
   student_id: string
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  checked_in_at: string | null
+  checked_out_at: string | null
   created_at: string
+  payments?: ApplicationPaymentRecord[] | ApplicationPaymentRecord | null
 }
 
 interface MerchantJobApplicantsViewProps {
@@ -117,10 +141,14 @@ export function MerchantJobApplicantsView({
   const [walletBalance, setWalletBalance] = useState<number>(initialWalletBalance)
   const [serviceFee, setServiceFee] = useState<number>(initialServiceFee)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const currentTime = useNow(15000)
 
   // Modals state
   const [selectedAppForAccept, setSelectedAppForAccept] = useState<ApplicantItem | null>(null)
   const [selectedAppForReject, setSelectedAppForReject] = useState<ApplicantItem | null>(null)
+  const [selectedAppForCompletion, setSelectedAppForCompletion] = useState<ApplicantItem | null>(null)
+  const [selectedAppForNoShow, setSelectedAppForNoShow] = useState<ApplicantItem | null>(null)
+  const [showCancelJobModal, setShowCancelJobModal] = useState<boolean>(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -137,9 +165,9 @@ export function MerchantJobApplicantsView({
     }, 5000)
   }
 
-  // Refresh data function
-  const refreshData = async () => {
-    setIsRefreshing(true)
+  // Refresh data function (mendukung silent refresh agar tidak ada indikator loading berkedip)
+  const refreshData = async (silent = false) => {
+    if (!silent) setIsRefreshing(true)
     try {
       // 1. Refresh Job
       const { data: updatedJob, error: jobError } = await supabase
@@ -180,10 +208,24 @@ export function MerchantJobApplicantsView({
         setServiceFee(Number(updatedSettings.int_value))
       }
 
-      // 4. Refresh Applications
+      // 4. Refresh Applications beserta Payments & Timestamps
       const { data: appsData, error: appsError } = await supabase
         .from('applications')
-        .select('*')
+        .select(`
+          id,
+          job_id,
+          student_id,
+          status,
+          checked_in_at,
+          checked_out_at,
+          created_at,
+          payments (
+            id,
+            amount,
+            commission,
+            status
+          )
+        `)
         .eq('job_id', job.id)
         .order('created_at', { ascending: false })
 
@@ -248,13 +290,26 @@ export function MerchantJobApplicantsView({
           const prof = profilesMap[app.student_id]
           const sp = studentProfilesMap[app.student_id]
           const rat = ratingsMap[app.student_id]
+          const rawPay = Array.isArray(app.payments)
+            ? app.payments[0] || null
+            : app.payments || null
 
           return {
             id: app.id,
             job_id: app.job_id,
             student_id: app.student_id,
             status: app.status,
+            checked_in_at: app.checked_in_at || null,
+            checked_out_at: app.checked_out_at || null,
             created_at: app.created_at,
+            payment: rawPay
+              ? {
+                  id: rawPay.id,
+                  amount: rawPay.amount,
+                  commission: rawPay.commission,
+                  status: rawPay.status,
+                }
+              : null,
             student: {
               id: app.student_id,
               full_name: prof?.full_name || 'Mahasiswa',
@@ -275,9 +330,14 @@ export function MerchantJobApplicantsView({
     } catch (err) {
       console.error('Unexpected error during refreshData:', err)
     } finally {
-      setIsRefreshing(false)
+      if (!silent) setIsRefreshing(false)
     }
   }
+
+  // Sinkronisasi otomatis tiap 20 detik dan saat tab kembali fokus tanpa indikator berkedip
+  useAutoRefresh(() => {
+    refreshData(true)
+  }, 20000)
 
   // Filter applications
   const acceptedApplicants = applications.filter((app) => app.status === 'accepted')
@@ -287,6 +347,15 @@ export function MerchantJobApplicantsView({
   const totalPerWorker = job.pay_amount + serviceFee
   const isBalanceInsufficient = walletBalance < totalPerWorker
   const isJobFilled = job.status === 'filled' || acceptedApplicants.length >= job.slots
+
+  // Kalkulasi estimasi dana yang dikembalikan jika lowongan dibatalkan
+  const heldRefundAmount = acceptedApplicants.reduce((acc, a) => {
+    if (a.payment && a.payment.status === 'held') {
+      return acc + a.payment.amount + a.payment.commission
+    }
+    // Jika data payment belum terbaca tetapi status accepted, fallback ke total per worker
+    return acc + totalPerWorker
+  }, 0)
 
   // Handle Accept Application (via RPC accept_application)
   const handleConfirmAccept = async () => {
@@ -301,7 +370,11 @@ export function MerchantJobApplicantsView({
       })
 
       if (error) {
-        console.error('Error Supabase rpc accept_application:', error)
+        if (error.code === 'P0001') {
+          console.warn('Peringatan accept_application dari database:', error.message)
+        } else {
+          console.error('Error Supabase rpc accept_application:', error)
+        }
         // Tampilkan error.message dari database apa adanya
         setActionError(error.message)
         return
@@ -342,7 +415,11 @@ export function MerchantJobApplicantsView({
         .eq('id', selectedAppForReject.id)
 
       if (error) {
-        console.error('Error Supabase update applications to rejected:', error)
+        if (error.code === 'P0001') {
+          console.warn('Peringatan reject application dari database:', error.message)
+        } else {
+          console.error('Error Supabase update applications to rejected:', error)
+        }
         setActionError(error.message)
         return
       }
@@ -358,6 +435,124 @@ export function MerchantJobApplicantsView({
     } catch (err: unknown) {
       console.error('Exception reject application:', err)
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menolak lamaran.'
+      setActionError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Handle Confirm Completion & Release Wages (via RPC confirm_completion)
+  const handleConfirmCompletion = async () => {
+    if (!selectedAppForCompletion) return
+    setIsSubmitting(true)
+    setActionError(null)
+
+    try {
+      const { error } = await supabase.rpc('confirm_completion', {
+        p_application_id: selectedAppForCompletion.id,
+      })
+
+      if (error) {
+        if (error.code === 'P0001') {
+          console.warn('Peringatan confirm_completion dari database:', error.message)
+        } else {
+          console.error('Error Supabase rpc confirm_completion:', error)
+        }
+        setActionError(error.message)
+        return
+      }
+
+      const studentName = selectedAppForCompletion.student.full_name || 'Mahasiswa'
+      setSelectedAppForCompletion(null)
+      showToast(
+        `Berhasil! Upah ${formatRupiah(job.pay_amount)} telah dicairkan ke ${studentName}.`,
+        'success'
+      )
+
+      await refreshData()
+      router.refresh()
+    } catch (err: unknown) {
+      console.error('Exception confirm_completion:', err)
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat mencairkan upah.'
+      setActionError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Handle Report No Show (via RPC report_no_show)
+  const handleConfirmNoShow = async () => {
+    if (!selectedAppForNoShow) return
+    setIsSubmitting(true)
+    setActionError(null)
+
+    try {
+      const { error } = await supabase.rpc('report_no_show', {
+        p_application_id: selectedAppForNoShow.id,
+      })
+
+      if (error) {
+        if (error.code === 'P0001') {
+          console.warn('Peringatan report_no_show dari database:', error.message)
+        } else {
+          console.error('Error Supabase rpc report_no_show:', error)
+        }
+        setActionError(error.message)
+        return
+      }
+
+      const studentName = selectedAppForNoShow.student.full_name || 'Mahasiswa'
+      const refundNominal = selectedAppForNoShow.payment
+        ? selectedAppForNoShow.payment.amount + selectedAppForNoShow.payment.commission
+        : totalPerWorker
+
+      setSelectedAppForNoShow(null)
+      showToast(
+        `Mahasiswa ${studentName} telah dilaporkan tidak hadir. Dana ${formatRupiah(
+          refundNominal
+        )} dikembalikan ke saldo dompetmu.`,
+        'info'
+      )
+
+      await refreshData()
+      router.refresh()
+    } catch (err: unknown) {
+      console.error('Exception report_no_show:', err)
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat melaporkan tidak hadir.'
+      setActionError(message)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Handle Cancel Job (via RPC cancel_job)
+  const handleConfirmCancelJob = async () => {
+    setIsSubmitting(true)
+    setActionError(null)
+
+    try {
+      const { error } = await supabase.rpc('cancel_job', {
+        p_job_id: job.id,
+      })
+
+      if (error) {
+        if (error.code === 'P0001') {
+          console.warn('Peringatan cancel_job dari database:', error.message)
+        } else {
+          console.error('Error Supabase rpc cancel_job:', error)
+        }
+        setActionError(error.message)
+        return
+      }
+
+      setShowCancelJobModal(false)
+      showToast(`Lowongan "${job.title}" berhasil dibatalkan.`, 'info')
+
+      // Setelah sukses kembali ke /merchant/jobs sesuai instruksi
+      router.push('/merchant/jobs')
+    } catch (err: unknown) {
+      console.error('Exception cancel_job:', err)
+      const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat membatalkan lowongan.'
       setActionError(message)
     } finally {
       setIsSubmitting(false)
@@ -416,7 +611,7 @@ export function MerchantJobApplicantsView({
 
         {/* Refresh indicator */}
         <button
-          onClick={refreshData}
+          onClick={() => refreshData(false)}
           disabled={isRefreshing}
           className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
           title="Segarkan data"
@@ -552,15 +747,34 @@ export function MerchantJobApplicantsView({
         ) : (
           <div className="space-y-3">
             {acceptedApplicants.map((app) => {
+              const isPaid = app.payment?.status === 'released'
+              const isCheckedOut = Boolean(app.checked_out_at)
+              const isCheckedIn = Boolean(app.checked_in_at)
+              const canReportNoShow =
+                !isCheckedIn &&
+                !isPaid &&
+                currentTime !== null &&
+                currentTime >= new Date(job.start_at).getTime() + 30 * 60 * 1000
+
               const waUrl = formatWhatsAppUrl(
                 app.student.phone,
-                `Halo ${getFirstName(app.student.full_name)}, saya dari pemberi kerja lowongan "${job.title}" di Labor2Go. Apakah kamu sudah siap untuk jadwal ini?`
+                `Halo ${getFirstName(
+                  app.student.full_name
+                )}, saya dari pemberi kerja lowongan "${job.title}" di Labor2Go. Apakah kamu sudah siap untuk jadwal ini?`
               )
 
               return (
                 <div
                   key={app.id}
-                  className="bg-white rounded-2xl p-4 border-2 border-emerald-500/20 shadow-xs relative overflow-hidden"
+                  className={`bg-white rounded-2xl p-4 border-2 shadow-xs relative overflow-hidden transition-all ${
+                    isPaid
+                      ? 'border-emerald-300 bg-emerald-50/20'
+                      : isCheckedOut
+                      ? 'border-blue-300 bg-blue-50/20'
+                      : isCheckedIn
+                      ? 'border-emerald-400 bg-emerald-50/10'
+                      : 'border-gray-200'
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3 mb-2.5">
                     <div>
@@ -581,13 +795,31 @@ export function MerchantJobApplicantsView({
                       <p className="text-xs text-gray-500 mt-0.5">{app.student.university}</p>
                     </div>
 
-                    <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-lg border border-emerald-200">
-                      Diterima
-                    </span>
+                    {/* Status badge per pekerja */}
+                    {isPaid ? (
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold rounded-lg border border-emerald-300 flex items-center gap-1 shadow-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Selesai - Dibayar</span>
+                      </span>
+                    ) : isCheckedOut ? (
+                      <span className="px-2.5 py-1 bg-blue-50 text-blue-700 text-[11px] font-bold rounded-lg border border-blue-200 flex items-center gap-1">
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Sudah Check-out</span>
+                      </span>
+                    ) : isCheckedIn ? (
+                      <span className="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-[11px] font-bold rounded-lg border border-emerald-200 flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>Sedang bekerja</span>
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 bg-amber-50 text-amber-700 text-[11px] font-bold rounded-lg border border-amber-200">
+                        Belum hadir
+                      </span>
+                    )}
                   </div>
 
                   {/* Level & Rating stats */}
-                  <div className="flex items-center gap-3 text-xs text-gray-600 mb-3.5 pt-1">
+                  <div className="flex items-center gap-3 text-xs text-gray-600 mb-3 pt-1">
                     <span className="px-2 py-0.5 bg-gray-100 rounded-md font-semibold text-gray-700 text-[11px]">
                       Level {app.student.level}
                     </span>
@@ -600,8 +832,89 @@ export function MerchantJobApplicantsView({
                     </div>
                   </div>
 
-                  {/* Kontak WhatsApp HANYA untuk accepted */}
-                  <div className="pt-3 border-t border-gray-100 flex items-center justify-between gap-2">
+                  {/* Info Box Detail Kehadiran / Kerja */}
+                  {isPaid ? (
+                    <div className="bg-emerald-50/80 border border-emerald-200/60 rounded-xl p-2.5 mb-3 text-xs text-emerald-950 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                        <span>Tugas selesai & upah telah dicairkan</span>
+                      </div>
+                      {app.checked_in_at && app.checked_out_at && (
+                        <span className="text-[10px] text-emerald-700 font-medium">
+                          {formatTimeWIB(app.checked_in_at)} - {formatTimeWIB(app.checked_out_at)} WIB
+                        </span>
+                      )}
+                    </div>
+                  ) : isCheckedOut && app.checked_out_at ? (
+                    <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-2.5 mb-3 text-xs text-blue-900 space-y-1">
+                      <div className="flex items-center justify-between font-semibold">
+                        <span>Pekerja sudah check-out</span>
+                        <span className="text-[11px] text-blue-700">
+                          {formatTimeWIB(app.checked_out_at, { includeSuffix: true })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 leading-snug">
+                        Silakan periksa hasil kerja sebelum melakukan konfirmasi pencairan upah.
+                      </p>
+                    </div>
+                  ) : isCheckedIn && app.checked_in_at ? (
+                    <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-2.5 mb-3 text-xs text-emerald-900 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="font-bold">Sedang bekerja</span>
+                      </div>
+                      <span className="text-xs font-semibold text-emerald-800">
+                        Check-in: {formatTimeWIB(app.checked_in_at, { includeSuffix: true })}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-50 border border-gray-100 rounded-xl p-2.5 mb-3 text-xs text-gray-600 flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span className="font-medium">Kehadiran:</span>
+                      </div>
+                      <span className="font-bold text-amber-600">Belum hadir</span>
+                    </div>
+                  )}
+
+                  {/* Tombol Utama: Konfirmasi Selesai & Cairkan Upah (Kondisi sudah check-out & belum dibayar) */}
+                  {isCheckedOut && !isPaid && (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionError(null)
+                          setSelectedAppForCompletion(app)
+                        }}
+                        disabled={isSubmitting}
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#FF6B00] hover:bg-[#e66000] active:scale-[0.98] text-white text-xs font-bold transition-all shadow-md shadow-orange-500/20 flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Konfirmasi Selesai & Cairkan Upah</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Tombol: Lapor Tidak Hadir (Kondisi belum check-in & >= start_at + 30 menit) */}
+                  {canReportNoShow && !isCheckedIn && !isPaid && (
+                    <div className="mb-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionError(null)
+                          setSelectedAppForNoShow(app)
+                        }}
+                        disabled={isSubmitting}
+                        className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 active:scale-[0.98] text-xs font-bold transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                        <span>Lapor Tidak Hadir</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Kontak WhatsApp */}
+                  <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
                     <div className="text-xs">
                       <span className="text-gray-400 block text-[10px] uppercase font-bold">
                         Nomor WhatsApp
@@ -616,9 +929,9 @@ export function MerchantJobApplicantsView({
                         href={waUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs"
                       >
-                        <MessageCircle className="w-4 h-4 fill-white" />
+                        <MessageCircle className="w-3.5 h-3.5 fill-white" />
                         <span>Hubungi via WA</span>
                       </a>
                     ) : (
@@ -772,20 +1085,23 @@ export function MerchantJobApplicantsView({
         )}
       </div>
 
-      {/* 6. Tombol "Batalkan Lowongan" nonaktif dengan label "Segera hadir" */}
-      <div className="pt-2 pb-6 flex flex-col items-center">
-        <button
-          disabled
-          aria-disabled="true"
-          className="w-full py-3 px-4 rounded-2xl bg-gray-100 border border-gray-200/80 text-gray-400 text-xs font-bold flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80"
-        >
-          <Ban className="w-4 h-4" />
-          <span>Batalkan Lowongan</span>
-          <span className="px-2 py-0.5 rounded-full bg-gray-200 text-gray-600 text-[10px] font-bold uppercase tracking-wider">
-            Segera hadir
-          </span>
-        </button>
-      </div>
+      {/* 6. Tombol "Batalkan Lowongan" (aktif untuk status open atau filled) */}
+      {(job.status === 'open' || job.status === 'filled') && (
+        <div className="pt-2 pb-6 flex flex-col items-center">
+          <button
+            type="button"
+            onClick={() => {
+              setActionError(null)
+              setShowCancelJobModal(true)
+            }}
+            disabled={isSubmitting}
+            className="w-full py-3 px-4 rounded-2xl bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-700 text-xs font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-50"
+          >
+            <Ban className="w-4 h-4" />
+            <span>Batalkan Lowongan</span>
+          </button>
+        </div>
+      )}
 
       {/* MODAL 1: Konfirmasi Terima Pekerja */}
       {selectedAppForAccept && (
@@ -969,6 +1285,299 @@ export function MerchantJobApplicantsView({
                   </>
                 ) : (
                   <span>Ya, Tolak</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: Konfirmasi Selesai & Cairkan Upah */}
+      {selectedAppForCompletion && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4"
+        >
+          <div className="w-full max-w-[390px] bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-100 text-[#FF6B00] flex items-center justify-center font-bold">
+                  <CheckCircle2 className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <h3 className="text-base font-extrabold text-[#0B1C30]">
+                  Konfirmasi Selesai & Cairkan
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedAppForCompletion(null)}
+                disabled={isSubmitting}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-400 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Candidate Info */}
+            <div className="bg-gray-50 rounded-2xl p-3.5 mb-3.5 border border-gray-100 text-xs">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-1">
+                Pekerja
+              </span>
+              <p className="text-sm font-bold text-gray-900">
+                {selectedAppForCompletion.student.full_name || 'Mahasiswa'}
+              </p>
+              <p className="text-gray-500 mt-0.5">{selectedAppForCompletion.student.university}</p>
+            </div>
+
+            {/* Info Dialog Sesuai Persyaratan */}
+            <div className="bg-orange-50/80 border border-orange-200 rounded-2xl p-4 text-xs text-orange-950 mb-4 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-[#FF6B00]">
+                <CheckCircle2 className="w-4 h-4 text-[#FF6B00] flex-shrink-0" />
+                <span>Pencairan Upah Mahasiswa</span>
+              </div>
+              <p className="leading-relaxed">
+                Upah sebesar{' '}
+                <strong className="text-[#FF6B00] font-extrabold text-sm">
+                  {formatRupiah(job.pay_amount)}
+                </strong>{' '}
+                akan dicairkan ke mahasiswa.
+              </p>
+              <p className="text-[11px] text-orange-800 leading-snug">
+                Pastikan seluruh pekerjaan telah selesai diperiksa dengan memuaskan sebelum melakukan konfirmasi pencairan ini.
+              </p>
+            </div>
+
+            {/* Error Message jika ada */}
+            {actionError && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 mb-3.5 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <p className="font-medium leading-relaxed">{actionError}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setSelectedAppForCompletion(null)}
+                disabled={isSubmitting}
+                className="w-1/3 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs active:scale-95 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmCompletion}
+                disabled={isSubmitting}
+                className="flex-1 h-11 rounded-2xl bg-[#FF6B00] hover:bg-[#e66000] text-white font-bold text-xs shadow-md shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Mencairkan Upah...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Konfirmasi & Cairkan</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Konfirmasi Lapor Tidak Hadir */}
+      {selectedAppForNoShow && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4"
+        >
+          <div className="w-full max-w-[390px] bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                  <AlertTriangle className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <h3 className="text-base font-extrabold text-[#0B1C30]">
+                  Lapor Tidak Hadir
+                </h3>
+              </div>
+              <button
+                onClick={() => setSelectedAppForNoShow(null)}
+                disabled={isSubmitting}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-400 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Candidate Info */}
+            <div className="bg-gray-50 rounded-2xl p-3.5 mb-3.5 border border-gray-100 text-xs">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-1">
+                Pekerja
+              </span>
+              <p className="text-sm font-bold text-gray-900">
+                {selectedAppForNoShow.student.full_name || 'Mahasiswa'}
+              </p>
+              <p className="text-gray-500 mt-0.5">{selectedAppForNoShow.student.university}</p>
+            </div>
+
+            {/* Info Dialog Sesuai Persyaratan */}
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-rose-950 mb-4 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-rose-800">
+                <AlertTriangle className="w-4 h-4 text-rose-600 flex-shrink-0" />
+                <span>Konfirmasi Laporan No-Show</span>
+              </div>
+              <p className="leading-relaxed">
+                Dana{' '}
+                <strong className="text-rose-900 font-extrabold text-sm">
+                  {formatRupiah(
+                    selectedAppForNoShow.payment
+                      ? selectedAppForNoShow.payment.amount +
+                          selectedAppForNoShow.payment.commission
+                      : totalPerWorker
+                  )}
+                </strong>{' '}
+                dikembalikan ke saldomu dan mahasiswa mendapat catatan.
+              </p>
+              <p className="text-[11px] text-rose-700 leading-snug">
+                Tindakan ini akan membatalkan status lamaran pekerja ini dan menambahkan riwayat ketidakhadiran pada profil mahasiswa.
+              </p>
+            </div>
+
+            {/* Error Message jika ada */}
+            {actionError && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 mb-3.5 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <p className="font-medium leading-relaxed">{actionError}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setSelectedAppForNoShow(null)}
+                disabled={isSubmitting}
+                className="w-1/3 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs active:scale-95 transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleConfirmNoShow}
+                disabled={isSubmitting}
+                className="flex-1 h-11 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Memproses Laporan...</span>
+                  </>
+                ) : (
+                  <>
+                    <AlertTriangle className="w-4 h-4" />
+                    <span>Konfirmasi Tidak Hadir</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: Konfirmasi Batalkan Lowongan */}
+      {showCancelJobModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4"
+        >
+          <div className="w-full max-w-[390px] bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-5 duration-200">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                  <Ban className="w-5 h-5 stroke-[2.5]" />
+                </div>
+                <h3 className="text-base font-extrabold text-[#0B1C30]">
+                  Batalkan Lowongan
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowCancelJobModal(false)}
+                disabled={isSubmitting}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-400 flex items-center justify-center"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Lowongan Info */}
+            <div className="bg-gray-50 rounded-2xl p-3.5 mb-3.5 border border-gray-100 text-xs">
+              <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-1">
+                Lowongan yang Dibatalkan
+              </span>
+              <p className="text-sm font-bold text-gray-900">{job.title}</p>
+              <p className="text-gray-500 mt-0.5">
+                {formatJobScheduleWIB(job.start_at, job.end_at)}
+              </p>
+            </div>
+
+            {/* Informasi Pengembalian Dana */}
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 mb-4 space-y-2">
+              <div className="flex items-center gap-2 font-bold text-amber-900">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Pengembalian Dana Pembatalan</span>
+              </div>
+              {heldRefundAmount > 0 ? (
+                <p className="leading-relaxed">
+                  Dana penahanan escrow sebesar{' '}
+                  <strong className="text-amber-900 font-extrabold text-sm">
+                    {formatRupiah(heldRefundAmount)}
+                  </strong>{' '}
+                  akan dikembalikan sepenuhnya ke saldo dompetmu.
+                </p>
+              ) : (
+                <p className="leading-relaxed">
+                  Belum ada pekerja yang diterima untuk lowongan ini, sehingga tidak ada potongan saldo yang ditahan ({formatRupiah(0)} dikembalikan).
+                </p>
+              )}
+              <p className="text-[11px] text-amber-800 leading-snug">
+                Pekerja yang telah diterima akan dibatalkan, dan pelamar lainnya akan otomatis ditolak.
+              </p>
+            </div>
+
+            {/* Error Message jika ada */}
+            {actionError && (
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 mb-3.5 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                <p className="font-medium leading-relaxed">{actionError}</p>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setShowCancelJobModal(false)}
+                disabled={isSubmitting}
+                className="w-1/3 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs active:scale-95 transition-all"
+              >
+                Kembali
+              </button>
+              <button
+                onClick={handleConfirmCancelJob}
+                disabled={isSubmitting}
+                className="flex-1 h-11 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Membatalkan Lowongan...</span>
+                  </>
+                ) : (
+                  <>
+                    <Ban className="w-4 h-4" />
+                    <span>Ya, Batalkan Lowongan</span>
+                  </>
                 )}
               </button>
             </div>

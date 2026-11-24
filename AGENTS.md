@@ -20,6 +20,12 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
   Jangan pernah mengubah wallets/payments/wallet_transactions dari client, dan jangan
   meng-update applications.status = 'accepted' langsung. Biaya layanan dibaca dari tabel
   platform_settings (key 'service_fee_per_worker'), bukan hardcode.
+- Check-in/out, konfirmasi selesai, lapor tidak hadir, dan batalkan lowongan HANYA lewat
+  supabase.rpc: check_in, check_out, confirm_completion, report_no_show, cancel_job
+  (parameter: p_application_id atau p_job_id). Jangan update kolom checked_in_at/checked_out_at
+  atau tabel uang dari client.
+- Error bisnis dari database (saldo kurang, slot penuh, dll., error.code 'P0001') tampilkan ke
+  user dan catat dengan console.warn; console.error hanya untuk error tak terduga.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -23,7 +23,8 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { CAMPUS } from '@/lib/campus'
 import { formatRupiah, getFirstName } from '@/lib/format'
-import { JobCard, type JobFeedItem } from '@/components/student/JobCard'
+import { JobCard, type JobFeedItem, type ApplicationStatus } from '@/components/student/JobCard'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 interface StudentData {
   fullName: string
@@ -39,71 +40,97 @@ export default function StudentHomePage() {
 
   const [student, setStudent] = useState<StudentData | null>(null)
   const [jobs, setJobs] = useState<JobFeedItem[]>([])
+  const [applicationsMap, setApplicationsMap] = useState<Record<string, ApplicationStatus>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
 
-  useEffect(() => {
-    async function fetchHomeData() {
-      try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
+  const fetchHomeData = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true)
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
 
-        if (!user) {
-          router.push('/login?redirectTo=/student')
-          return
-        }
-
-        // 1. Ambil data profil dasar
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, verified, role')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        // 2. Ambil data profil mahasiswa
-        const { data: studentProfile } = await supabase
-          .from('student_profiles')
-          .select('university, level')
-          .eq('id', user.id)
-          .maybeSingle()
-
-        // 3. Ambil saldo dompet mahasiswa (hanya membaca wallets.balance)
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .maybeSingle()
-
-        setStudent({
-          fullName:
-            profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa',
-          university:
-            studentProfile?.university || CAMPUS.name,
-          level: studentProfile?.level || 1,
-          isVerified: Boolean(profile?.verified),
-          walletBalance: wallet?.balance ? Number(wallet.balance) : 0,
-        })
-
-        // 4. Ambil 5 lowongan terbaru HANYA dari view jobs_feed (urut created_at desc)
-        const { data: feedData, error: feedError } = await supabase
-          .from('jobs_feed')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(5)
-
-        if (!feedError && feedData) {
-          setJobs(feedData as JobFeedItem[])
-        }
-      } catch (err) {
-        console.error('Gagal memuat data beranda mahasiswa:', err)
-      } finally {
-        setLoading(false)
+      if (!user) {
+        router.push('/login?redirectTo=/student')
+        return
       }
-    }
 
-    fetchHomeData()
+      // 1. Ambil data profil dasar
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, verified, role')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      // 2. Ambil data profil mahasiswa
+      const { data: studentProfile } = await supabase
+        .from('student_profiles')
+        .select('university, level')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      // 3. Ambil saldo dompet mahasiswa (hanya membaca wallets.balance)
+      const { data: wallet } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle()
+
+      setStudent({
+        fullName:
+          profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa',
+        university:
+          studentProfile?.university || CAMPUS.name,
+        level: studentProfile?.level || 1,
+        isVerified: Boolean(profile?.verified),
+        walletBalance: wallet?.balance ? Number(wallet.balance) : 0,
+      })
+
+      // 4. Ambil 5 lowongan terbaru HANYA dari view jobs_feed (urut created_at desc)
+      const { data: feedData, error: feedError } = await supabase
+        .from('jobs_feed')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (!feedError && feedData) {
+        const jobsList = feedData as JobFeedItem[]
+        setJobs(jobsList)
+
+        // Ambil status lamaran milik user untuk daftar job yang tampil (1 query batch)
+        const jobIds = jobsList.map((j: JobFeedItem) => j.id)
+        if (jobIds.length > 0 && user) {
+          const { data: appsData, error: appsError } = await supabase
+            .from('applications')
+            .select('job_id, status')
+            .eq('student_id', user.id)
+            .in('job_id', jobIds)
+
+          if (!appsError && appsData) {
+            const map: Record<string, ApplicationStatus> = {}
+            appsData.forEach((app: { job_id: string; status: string }) => {
+              map[app.job_id] = app.status as ApplicationStatus
+            })
+            setApplicationsMap(map)
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Gagal memuat data beranda mahasiswa:', err)
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [supabase, router])
+
+  useEffect(() => {
+    fetchHomeData(false)
+  }, [fetchHomeData])
+
+  // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa kedipan skeleton
+  useAutoRefresh(() => {
+    fetchHomeData(true)
+  }, 20000)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -393,7 +420,11 @@ export default function StudentHomePage() {
               ) : (
                 <div className="flex flex-col gap-3">
                   {jobs.map((job) => (
-                    <JobCard key={job.id} job={job} />
+                    <JobCard
+                      key={job.id}
+                      job={job}
+                      applicationStatus={applicationsMap[job.id]}
+                    />
                   ))}
                 </div>
               )}

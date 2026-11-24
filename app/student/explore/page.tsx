@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense, useEffect, useState, useMemo, useRef } from 'react'
+import React, { Suspense, useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
@@ -17,9 +17,10 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { CAMPUS } from '@/lib/campus'
 import { calculateHaversineDistance } from '@/lib/geo'
-import { JobCard, type JobFeedItem } from '@/components/student/JobCard'
+import { JobCard, type JobFeedItem, type ApplicationStatus } from '@/components/student/JobCard'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
-type ChipFilter = 'semua' | 'dekat' | 'singkat'
+type ChipFilter = 'semua' | 'belum_dilamar' | 'dekat' | 'singkat'
 type SortOption = 'terbaru' | 'upah_tinggi' | 'mulai_terdekat' | 'terdekat_kampus'
 
 const CATEGORY_OPTIONS = [
@@ -74,6 +75,7 @@ function ExploreContent() {
   const [sortOption, setSortOption] = useState<SortOption>(initialSort)
 
   const [jobs, setJobs] = useState<JobFeedItem[]>([])
+  const [applicationsMap, setApplicationsMap] = useState<Record<string, ApplicationStatus>>({})
   const [loading, setLoading] = useState(true)
 
   // Debounce untuk input pencarian (300ms)
@@ -106,30 +108,58 @@ function ExploreContent() {
   }, [debouncedQ, chipFilter, selectedCategory, sortOption])
 
   // Ambil data dari VIEW jobs_feed (maks 100 baris, urut default created_at desc)
-  useEffect(() => {
-    async function fetchJobs() {
-      try {
-        setLoading(true)
-        const { data, error } = await supabase
-          .from('jobs_feed')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(100)
+  const fetchJobs = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true)
+      const { data, error } = await supabase
+        .from('jobs_feed')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100)
 
-        if (!error && data) {
-          setJobs(data as JobFeedItem[])
-        } else if (error) {
-          console.error('Error fetching jobs_feed:', error)
+      if (!error && data) {
+        const jobsList = data as JobFeedItem[]
+        setJobs(jobsList)
+
+        // Ambil status lamaran milik user untuk daftar job yang tampil (1 query batch)
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+
+        const jobIds = jobsList.map((j: JobFeedItem) => j.id)
+        if (jobIds.length > 0 && user) {
+          const { data: appsData, error: appsError } = await supabase
+            .from('applications')
+            .select('job_id, status')
+            .eq('student_id', user.id)
+            .in('job_id', jobIds)
+
+          if (!appsError && appsData) {
+            const map: Record<string, ApplicationStatus> = {}
+            appsData.forEach((app: { job_id: string; status: string }) => {
+              map[app.job_id] = app.status as ApplicationStatus
+            })
+            setApplicationsMap(map)
+          }
         }
-      } catch (err) {
-        console.error('Fetch error:', err)
-      } finally {
-        setLoading(false)
+      } else if (error) {
+        console.error('Error fetching jobs_feed:', error)
       }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      if (!silent) setLoading(false)
     }
-
-    fetchJobs()
   }, [supabase])
+
+  useEffect(() => {
+    fetchJobs(false)
+  }, [fetchJobs])
+
+  // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa indikator skeleton berkedip
+  useAutoRefresh(() => {
+    fetchJobs(true)
+  }, 20000)
 
   // Filter & Urutkan data pekerjaan
   const filteredJobs = useMemo(() => {
@@ -143,8 +173,13 @@ function ExploreContent() {
           if (!matchTitle && !matchBusiness) return false
         }
 
-        // 2. Chip Filter: Dekat Kampus (<1km) & Shift Singkat (durasi <= 3 jam)
-        if (chipFilter === 'dekat') {
+        // 2. Chip Filter: Belum Dilamar, Dekat Kampus (<1km) & Shift Singkat (durasi <= 3 jam)
+        if (chipFilter === 'belum_dilamar') {
+          const status = applicationsMap[job.id]
+          if (status === 'pending' || status === 'accepted' || status === 'rejected') {
+            return false
+          }
+        } else if (chipFilter === 'dekat') {
           if (job.lat == null || job.lng == null) return false
           const distKm = calculateHaversineDistance(CAMPUS.lat, CAMPUS.lng, job.lat, job.lng)
           if (distKm >= 1) return false
@@ -215,7 +250,7 @@ function ExploreContent() {
         // Default: Terbaru
         return new Date(b.created_at || b.start_at).getTime() - new Date(a.created_at || a.start_at).getTime()
       })
-  }, [jobs, debouncedQ, chipFilter, selectedCategory, sortOption])
+  }, [jobs, applicationsMap, debouncedQ, chipFilter, selectedCategory, sortOption])
 
   // Reset semua filter
   const handleResetFilters = () => {
@@ -272,7 +307,7 @@ function ExploreContent() {
           )}
         </div>
 
-        {/* Chip Filter Bar (Semua, Dekat Kampus, Shift Singkat, Dropdown Kategori) */}
+        {/* Chip Filter Bar (Semua, Belum Dilamar, Dekat Kampus, Shift Singkat, Dropdown Kategori) */}
         <div className="flex items-center gap-2 overflow-x-auto py-1 -mx-4 px-4 no-scrollbar">
           {/* Chip: Semua */}
           <button
@@ -287,6 +322,19 @@ function ExploreContent() {
             }`}
           >
             Semua
+          </button>
+
+          {/* Chip: Belum dilamar */}
+          <button
+            type="button"
+            onClick={() => setChipFilter(chipFilter === 'belum_dilamar' ? 'semua' : 'belum_dilamar')}
+            className={`shrink-0 h-8 px-3.5 rounded-full text-xs font-bold transition-all active:scale-95 shadow-xs ${
+              chipFilter === 'belum_dilamar'
+                ? 'bg-[#FF6B00] text-white shadow-orange-500/20'
+                : 'bg-white text-gray-600 border border-gray-200/80 hover:bg-gray-50'
+            }`}
+          >
+            Belum dilamar
           </button>
 
           {/* Chip: Dekat Kampus (<1km) */}
@@ -402,7 +450,11 @@ function ExploreContent() {
         ) : (
           <div className="flex flex-col gap-3">
             {filteredJobs.map((job) => (
-              <JobCard key={job.id} job={job} />
+              <JobCard
+                key={job.id}
+                job={job}
+                applicationStatus={applicationsMap[job.id]}
+              />
             ))}
           </div>
         )}

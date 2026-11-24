@@ -38,6 +38,7 @@ import {
   getShiftBadge,
   isUrgentJob,
 } from '@/lib/format'
+import { useNow } from '@/hooks/useNow'
 
 export interface JobDetailData {
   id: string
@@ -228,9 +229,11 @@ export function JobDetailView({
     }
   }
 
+  const nowMs = useNow()
+
   // Perhitungan Data Halaman (utamakan nilai server untuk mencegah hydration mismatch)
   const shiftBadgeText = job.shiftBadge ?? getShiftBadge(job.start_at)
-  const isUrgent = job.isUrgent ?? isUrgentJob(job.start_at)
+  const isUrgent = job.isUrgent ?? (nowMs !== null ? isUrgentJob(job.start_at, nowMs) : false)
   const hasReviews = job.review_count > 0 && job.avg_rating != null
   const distanceText = getDistanceFromCampus(job.lat, job.lng, CAMPUS)
 
@@ -689,15 +692,19 @@ export function JobDetailView({
               /* 4. Kondisi Mahasiswa Saat Lowongan Tersedia */
               <>
                 {application?.status === 'accepted' ? (
-                  // Status Accepted -> Kamu diterima
-                  <div className="w-full flex flex-col items-center gap-1">
-                    <div className="w-full h-12 rounded-full bg-emerald-600 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm">
-                      <CheckCircle2 className="w-5 h-5 text-white" />
-                      <span>Kamu Diterima</span>
+                  // Status Accepted -> Kamu diterima & Tautan Buka di Tugas Aktif
+                  <div className="w-full flex flex-col items-center gap-2">
+                    <div className="w-full h-10 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold text-xs flex items-center justify-center gap-2 shadow-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <span>Kamu Diterima untuk Pekerjaan Ini</span>
                     </div>
-                    <span className="text-xs text-gray-500 font-medium">
-                      Aksi check-in nanti di Tugas Aktif
-                    </span>
+                    <Link
+                      href="/student/activity"
+                      className="w-full h-12 rounded-full bg-[#FF6B00] hover:bg-[#e05e00] active:scale-[0.99] text-white font-bold text-sm shadow-md shadow-orange-500/20 flex items-center justify-center gap-2 transition-all"
+                    >
+                      <span>Buka di Tugas Aktif</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Link>
                   </div>
                 ) : application?.status === 'rejected' ? (
                   // Status Rejected -> Lamaran tidak dipilih

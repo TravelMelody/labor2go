@@ -4,6 +4,7 @@ import { Star, MapPin, Clock, Users, Zap } from 'lucide-react'
 import { CAMPUS, CampusLocation } from '@/lib/campus'
 import { getDistanceFromCampus } from '@/lib/geo'
 import { formatRupiah, formatJobScheduleWIB } from '@/lib/format'
+import { useNow } from '@/hooks/useNow'
 
 export interface JobFeedItem {
   id: string
@@ -26,20 +27,31 @@ export interface JobFeedItem {
   slots_left: number
 }
 
+export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn' | null
+
 interface JobCardProps {
   job: JobFeedItem
   href?: string
   campus?: CampusLocation
+  applicationStatus?: ApplicationStatus
 }
 
-export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
+export function JobCard({
+  job,
+  href,
+  campus = CAMPUS,
+  applicationStatus,
+}: JobCardProps) {
   const distanceText = getDistanceFromCampus(job.lat, job.lng, campus)
   const scheduleText = formatJobScheduleWIB(job.start_at, job.end_at)
   const hasReviews = job.review_count > 0 && job.avg_rating != null
 
+  const nowMs = useNow()
+
   // Hitung apakah pekerjaan butuh cepat (jam mulai kurang dari 60 menit dari sekarang)
+  // Saat nowMs null (render awal / hidrasi), badge "Butuh Cepat" TIDAK ditampilkan untuk mencegah hydration mismatch
   const startTime = new Date(job.start_at).getTime()
-  const diffMinutes = Math.floor((startTime - Date.now()) / (1000 * 60))
+  const diffMinutes = nowMs !== null ? Math.floor((startTime - nowMs) / (1000 * 60)) : -1
   const isUrgent = diffMinutes > 0 && diffMinutes <= 60
 
   return (
@@ -49,7 +61,7 @@ export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
     >
       {/* Kolom Kiri: Info Lowongan (flex-1, min-w-0) */}
       <div className="flex flex-col min-w-0 flex-1">
-        {/* Baris 1: Nama usaha + badge kategori + badge rating / baru */}
+        {/* Baris 1: Nama usaha + badge kategori + badge rating / baru + badge status lamaran */}
         <div className="flex items-center gap-1.5 mb-1 flex-wrap">
           <span className="text-xs font-semibold text-gray-500 truncate max-w-[130px] sm:max-w-[170px]">
             {job.business_name}
@@ -73,6 +85,23 @@ export function JobCard({ job, href, campus = CAMPUS }: JobCardProps) {
           ) : (
             <span className="bg-emerald-50 text-emerald-700 font-bold text-[10px] px-1.5 py-0.5 rounded-full shrink-0">
               Baru
+            </span>
+          )}
+
+          {/* Badge Status Lamaran (Tugas A) */}
+          {applicationStatus === 'pending' && (
+            <span className="font-bold text-[10px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 shrink-0">
+              Sudah dilamar
+            </span>
+          )}
+          {applicationStatus === 'accepted' && (
+            <span className="font-bold text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200/80 shrink-0">
+              Diterima
+            </span>
+          )}
+          {applicationStatus === 'rejected' && (
+            <span className="font-bold text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 border border-gray-200/80 shrink-0">
+              Tidak dipilih
             </span>
           )}
         </div>

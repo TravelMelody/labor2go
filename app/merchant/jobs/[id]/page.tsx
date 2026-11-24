@@ -33,12 +33,22 @@ interface ProfileRatingRecord {
   review_count: number | null
 }
 
+interface ApplicationPaymentRecord {
+  id: string
+  amount: number
+  commission: number
+  status: 'pending' | 'held' | 'released' | 'refunded'
+}
+
 interface ApplicationRow {
   id: string
   job_id: string
   student_id: string
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  checked_in_at: string | null
+  checked_out_at: string | null
   created_at: string
+  payments?: ApplicationPaymentRecord[] | ApplicationPaymentRecord | null
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -154,10 +164,24 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
   }
   const serviceFee = Number(settingsData?.int_value ?? 5000)
 
-  // 6. Baca Applications untuk Job Ini
+  // 6. Baca Applications untuk Job Ini (termasuk status check-in/out dan payments)
   const { data: appsData, error: appsError } = await supabase
     .from('applications')
-    .select('*')
+    .select(`
+      id,
+      job_id,
+      student_id,
+      status,
+      checked_in_at,
+      checked_out_at,
+      created_at,
+      payments (
+        id,
+        amount,
+        commission,
+        status
+      )
+    `)
     .eq('job_id', id)
     .order('created_at', { ascending: false })
 
@@ -221,13 +245,26 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
     const prof = profilesMap[app.student_id]
     const sp = studentProfilesMap[app.student_id]
     const rat = ratingsMap[app.student_id]
+    const rawPay = Array.isArray(app.payments)
+      ? app.payments[0] || null
+      : app.payments || null
 
     return {
       id: app.id,
       job_id: app.job_id,
       student_id: app.student_id,
       status: app.status,
+      checked_in_at: app.checked_in_at || null,
+      checked_out_at: app.checked_out_at || null,
       created_at: app.created_at,
+      payment: rawPay
+        ? {
+            id: rawPay.id,
+            amount: rawPay.amount,
+            commission: rawPay.commission,
+            status: rawPay.status,
+          }
+        : null,
       student: {
         id: app.student_id,
         full_name: prof?.full_name || 'Mahasiswa',

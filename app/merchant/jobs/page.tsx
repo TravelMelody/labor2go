@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -14,7 +14,10 @@ import {
   Loader2,
   PlusCircle,
   AlertCircle,
+  AlertTriangle,
+  Ban,
   X,
+  Check,
   ChevronRight,
   ArrowRight,
   User,
@@ -22,11 +25,20 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { formatRupiah, formatJobScheduleWIB, getFirstName } from '@/lib/format'
 import { SERVICE_FEE_PER_WORKER } from '@/lib/pricing'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+
+interface PaymentItem {
+  id: string
+  amount: number
+  commission: number
+  status: 'pending' | 'held' | 'released' | 'refunded'
+}
 
 interface ApplicationItem {
   id: string
   status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
   student_id: string
+  payments?: PaymentItem[] | PaymentItem | null
   student?: {
     id?: string
     full_name?: string | null
@@ -57,136 +69,206 @@ export default function MerchantJobsManagePage() {
   const [jobs, setJobs] = useState<JobItem[]>([])
   const [serviceFee, setServiceFee] = useState<number>(SERVICE_FEE_PER_WORKER)
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        // 1. Verifikasi User & Proteksi Role UMKM
-        const {
-          data: { user },
-          error: userError,
-        } = await supabase.auth.getUser()
+  // Cancel Modal State
+  const [selectedJobForCancel, setSelectedJobForCancel] = useState<JobItem | null>(null)
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState(false)
+  const [cancelActionError, setCancelActionError] = useState<string | null>(null)
 
-        if (userError || !user) {
-          router.replace('/login?redirectTo=/merchant/jobs')
-          return
-        }
+  // Toast State
+  const [toast, setToast] = useState<{
+    type: 'success' | 'error' | 'info'
+    message: string
+  } | null>(null)
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle()
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'success') => {
+    setToast({ type, message })
+    setTimeout(() => {
+      setToast(null)
+    }, 5000)
+  }
 
-        const role = profile?.role || user.user_metadata?.role
-        if (role !== 'umkm') {
-          router.replace('/student')
-          return
-        }
+  const loadData = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setLoading(true)
+      // 1. Verifikasi User & Proteksi Role UMKM
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
 
-        // 2. Baca biaya layanan dari platform_settings (key: service_fee_per_worker)
-        const { data: settingsData } = await supabase
-          .from('platform_settings')
-          .select('int_value')
-          .eq('key', 'service_fee_per_worker')
-          .maybeSingle()
+      if (userError || !user) {
+        router.replace('/login?redirectTo=/merchant/jobs')
+        return
+      }
 
-        if (settingsData?.int_value != null) {
-          setServiceFee(Number(settingsData.int_value))
-        }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle()
 
-        // 3. Ambil data jobs milik user beserta applications
-        const { data: jobsData, error: jobsError } = await supabase
-          .from('jobs')
-          .select(
-            `id,
-             title,
-             description,
-             location_name,
-             start_at,
-             end_at,
-             pay_amount,
-             slots,
+      const role = profile?.role || user.user_metadata?.role
+      if (role !== 'umkm') {
+        router.replace('/student')
+        return
+      }
+
+      // 2. Baca biaya layanan dari platform_settings (key: service_fee_per_worker)
+      const { data: settingsData } = await supabase
+        .from('platform_settings')
+        .select('int_value')
+        .eq('key', 'service_fee_per_worker')
+        .maybeSingle()
+
+      if (settingsData?.int_value != null) {
+        setServiceFee(Number(settingsData.int_value))
+      }
+
+      // 3. Ambil data jobs milik user beserta applications dan payments
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs')
+        .select(
+          `id,
+           title,
+           description,
+           location_name,
+           start_at,
+           end_at,
+           pay_amount,
+           slots,
+           status,
+           created_at,
+           applications (
+             id,
              status,
-             created_at,
-             applications (
+             student_id,
+             payments (
                id,
-               status,
-               student_id
-             )`
-          )
-          .eq('umkm_id', user.id)
-          .order('created_at', { ascending: false })
+               amount,
+               commission,
+               status
+             )
+           )`
+        )
+        .eq('umkm_id', user.id)
+        .order('created_at', { ascending: false })
 
-        if (jobsError) {
-          console.error('Error saat membaca jobs merchant:', jobsError)
-        } else if (jobsData) {
-          // Kumpulkan student_id dari lamaran berstatus accepted untuk mengambil nama mahasiswa
-          const studentIds = new Set<string>()
-          jobsData.forEach((j: any) => {
-            if (Array.isArray(j.applications)) {
-              j.applications.forEach((a: ApplicationItem) => {
-                if (a.status === 'accepted' && a.student_id) {
-                  studentIds.add(a.student_id)
-                }
-              })
-            }
-          })
+      if (jobsError) {
+        console.error('Error saat membaca jobs merchant:', jobsError)
+      } else if (jobsData) {
+        // Kumpulkan student_id dari lamaran berstatus accepted untuk mengambil nama mahasiswa
+        const studentIds = new Set<string>()
+        jobsData.forEach((j: any) => {
+          if (Array.isArray(j.applications)) {
+            j.applications.forEach((a: ApplicationItem) => {
+              if (a.status === 'accepted' && a.student_id) {
+                studentIds.add(a.student_id)
+              }
+            })
+          }
+        })
 
-          let studentProfileMap: Record<string, string> = {}
-          if (studentIds.size > 0) {
-            const { data: profilesData } = await supabase
-              .from('profiles')
-              .select('id, full_name')
-              .in('id', Array.from(studentIds))
+        let studentProfileMap: Record<string, string> = {}
+        if (studentIds.size > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', Array.from(studentIds))
 
-            if (profilesData) {
-              studentProfileMap = profilesData.reduce((acc, curr) => {
+          if (profilesData) {
+            studentProfileMap = (profilesData as Array<{ id: string; full_name: string | null }>).reduce(
+              (acc, curr) => {
                 acc[curr.id] = curr.full_name || 'Mahasiswa'
                 return acc
-              }, {} as Record<string, string>)
-            }
-          }
-
-          // Pasangkan data student ke applications
-          const mappedJobs: JobItem[] = jobsData.map((j: any) => {
-            const apps: ApplicationItem[] = (j.applications || []).map(
-              (app: any) => ({
-                id: app.id,
-                status: app.status,
-                student_id: app.student_id,
-                student: {
-                  id: app.student_id,
-                  full_name: studentProfileMap[app.student_id] || null,
-                },
-              })
+              },
+              {} as Record<string, string>
             )
-
-            return {
-              id: j.id,
-              title: j.title,
-              description: j.description,
-              location_name: j.location_name,
-              start_at: j.start_at,
-              end_at: j.end_at,
-              pay_amount: j.pay_amount,
-              slots: j.slots,
-              status: j.status,
-              created_at: j.created_at,
-              applications: apps,
-            }
-          })
-
-          setJobs(mappedJobs)
+          }
         }
-      } catch (err) {
-        console.error('Error saat load merchant jobs:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
 
-    loadData()
+        // Pasangkan data student ke applications
+        const mappedJobs: JobItem[] = jobsData.map((j: any) => {
+          const apps: ApplicationItem[] = (j.applications || []).map(
+            (app: any) => ({
+              id: app.id,
+              status: app.status,
+              student_id: app.student_id,
+              payments: app.payments,
+              student: {
+                id: app.student_id,
+                full_name: studentProfileMap[app.student_id] || null,
+              },
+            })
+          )
+
+          return {
+            id: j.id,
+            title: j.title,
+            description: j.description,
+            location_name: j.location_name,
+            start_at: j.start_at,
+            end_at: j.end_at,
+            pay_amount: j.pay_amount,
+            slots: j.slots,
+            status: j.status,
+            created_at: j.created_at,
+            applications: apps,
+          }
+        })
+
+        setJobs(mappedJobs)
+      }
+    } catch (err) {
+      console.error('Error saat load merchant jobs:', err)
+    } finally {
+      if (!silent) setLoading(false)
+    }
   }, [router, supabase])
+
+  useEffect(() => {
+    loadData(false)
+  }, [loadData])
+
+  // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa indikator loading berkedip
+  useAutoRefresh(() => {
+    loadData(true)
+  }, 20000)
+
+  // Handle pembatalan lowongan via RPC cancel_job
+  const handleConfirmCancelJob = async () => {
+    if (!selectedJobForCancel) return
+    setIsSubmittingCancel(true)
+    setCancelActionError(null)
+
+    try {
+      const { error } = await supabase.rpc('cancel_job', {
+        p_job_id: selectedJobForCancel.id,
+      })
+
+      if (error) {
+        if (error.code === 'P0001') {
+          console.warn('Peringatan cancel_job dari database:', error.message)
+        } else {
+          console.error('Error saat cancel_job:', error)
+        }
+        setCancelActionError(error.message)
+        return
+      }
+
+      const cancelledTitle = selectedJobForCancel.title
+      setSelectedJobForCancel(null)
+      showToast(`Lowongan "${cancelledTitle}" berhasil dibatalkan.`, 'info')
+
+      // Refresh data lowongan
+      await loadData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Terjadi kesalahan sistem'
+      console.error('Cancel job exception:', err)
+      setCancelActionError(msg)
+    } finally {
+      setIsSubmittingCancel(false)
+    }
+  }
 
   // Filter Jobs:
   // Aktif = status 'open', 'filled', 'in_progress'
@@ -212,6 +294,34 @@ export default function MerchantJobsManagePage() {
 
   return (
     <div className="flex-1 flex flex-col w-full pb-24 bg-[#F8F9FF]">
+      {/* Toast Notification */}
+      {toast && (
+        <div
+          role="alert"
+          className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[92%] max-w-[400px] p-3.5 rounded-2xl shadow-xl flex items-center justify-between gap-3 text-xs font-semibold animate-in fade-in slide-in-from-top-4 duration-300 ${
+            toast.type === 'success'
+              ? 'bg-emerald-600 text-white'
+              : toast.type === 'error'
+              ? 'bg-rose-600 text-white'
+              : 'bg-slate-800 text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            {toast.type === 'success' && <CheckCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'error' && <AlertCircle className="w-5 h-5 flex-shrink-0" />}
+            {toast.type === 'info' && <Check className="w-5 h-5 flex-shrink-0" />}
+            <span className="leading-snug">{toast.message}</span>
+          </div>
+          <button
+            onClick={() => setToast(null)}
+            className="p-1 rounded-full hover:bg-white/20 active:scale-95 transition-all"
+            aria-label="Tutup notifikasi"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Top Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
         <div className="h-14 px-4 flex items-center justify-between">
@@ -529,22 +639,22 @@ export default function MerchantJobsManagePage() {
 
                   {/* Tombol Aksi */}
                   <div className="flex items-center gap-2">
-                    {/* Tombol Batalkan (Hanya untuk aktif, tampil nonaktif 'Segera hadir') */}
-                    {activeTab === 'active' && (
-                      <button
-                        type="button"
-                        disabled
-                        aria-disabled="true"
-                        title="Fitur batalkan segera hadir"
-                        className="px-2.5 py-1.5 rounded-full bg-gray-100 text-gray-400 text-xs font-medium cursor-not-allowed flex items-center gap-1"
-                      >
-                        <X className="w-3 h-3" />
-                        <span>Batalkan</span>
-                        <span className="text-[9px] bg-gray-200 text-gray-500 px-1 py-0.2 rounded font-semibold">
-                          Segera hadir
-                        </span>
-                      </button>
-                    )}
+                    {/* Tombol Batalkan (Hanya untuk aktif status open / filled) */}
+                    {activeTab === 'active' &&
+                      (job.status === 'open' || job.status === 'filled') && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setCancelActionError(null)
+                            setSelectedJobForCancel(job)
+                          }}
+                          disabled={isSubmittingCancel}
+                          className="px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 text-xs font-bold transition-all flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          <span>Batalkan</span>
+                        </button>
+                      )}
 
                     {/* Tombol Kelola / Lihat Pelamar */}
                     <Link
@@ -565,6 +675,136 @@ export default function MerchantJobsManagePage() {
           })
         )}
       </main>
+
+      {/* Modal Konfirmasi Batalkan Lowongan dari Kartu Daftar */}
+      {selectedJobForCancel &&
+        (() => {
+          const acceptedApps =
+            selectedJobForCancel.applications?.filter(
+              (a) => a.status === 'accepted'
+            ) || []
+          const heldRefundAmount = acceptedApps.reduce((acc, app) => {
+            const pList = Array.isArray(app.payments)
+              ? app.payments
+              : app.payments
+              ? [app.payments]
+              : []
+            const heldPay = pList.find((p) => p.status === 'held')
+            if (heldPay) {
+              return acc + heldPay.amount + heldPay.commission
+            }
+            return acc + selectedJobForCancel.pay_amount + serviceFee
+          }, 0)
+
+          return (
+            <div
+              role="dialog"
+              aria-modal="true"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4"
+            >
+              <div className="w-full max-w-[390px] bg-white rounded-3xl p-5 shadow-2xl border border-gray-100 animate-in slide-in-from-bottom-5 duration-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center font-bold">
+                      <Ban className="w-5 h-5 stroke-[2.5]" />
+                    </div>
+                    <h3 className="text-base font-extrabold text-[#0B1C30]">
+                      Batalkan Lowongan
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setSelectedJobForCancel(null)}
+                    disabled={isSubmittingCancel}
+                    className="w-8 h-8 rounded-full hover:bg-gray-100 text-gray-400 flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Lowongan Info */}
+                <div className="bg-gray-50 rounded-2xl p-3.5 mb-3.5 border border-gray-100 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-wider block mb-1">
+                    Lowongan yang Dibatalkan
+                  </span>
+                  <p className="text-sm font-bold text-gray-900">
+                    {selectedJobForCancel.title}
+                  </p>
+                  <p className="text-gray-500 mt-0.5">
+                    {formatJobScheduleWIB(
+                      selectedJobForCancel.start_at,
+                      selectedJobForCancel.end_at
+                    )}
+                  </p>
+                </div>
+
+                {/* Informasi Pengembalian Dana */}
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-950 mb-4 space-y-2">
+                  <div className="flex items-center gap-2 font-bold text-amber-900">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    <span>Pengembalian Dana Pembatalan</span>
+                  </div>
+                  {heldRefundAmount > 0 ? (
+                    <p className="leading-relaxed">
+                      Dana penahanan escrow sebesar{' '}
+                      <strong className="text-amber-900 font-extrabold text-sm">
+                        {formatRupiah(heldRefundAmount)}
+                      </strong>{' '}
+                      akan dikembalikan sepenuhnya ke saldo dompetmu.
+                    </p>
+                  ) : (
+                    <p className="leading-relaxed">
+                      Belum ada pekerja yang diterima untuk lowongan ini, sehingga
+                      tidak ada potongan saldo yang ditahan ({formatRupiah(0)}{' '}
+                      dikembalikan).
+                    </p>
+                  )}
+                  <p className="text-[11px] text-amber-800 leading-snug">
+                    Pekerja yang telah diterima akan dibatalkan, dan pelamar
+                    lainnya akan otomatis ditolak.
+                  </p>
+                </div>
+
+                {/* Error Message jika ada */}
+                {cancelActionError && (
+                  <div className="bg-rose-50 border border-rose-200 rounded-xl p-3 text-xs text-rose-800 mb-3.5 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+                    <p className="font-medium leading-relaxed">
+                      {cancelActionError}
+                    </p>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    onClick={() => setSelectedJobForCancel(null)}
+                    disabled={isSubmittingCancel}
+                    className="w-1/3 h-11 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs active:scale-95 transition-all"
+                  >
+                    Kembali
+                  </button>
+                  <button
+                    onClick={handleConfirmCancelJob}
+                    disabled={isSubmittingCancel}
+                    className="flex-1 h-11 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmittingCancel ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Membatalkan...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Ban className="w-4 h-4" />
+                        <span>Ya, Batalkan</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
     </div>
   )
 }

@@ -161,11 +161,11 @@ export function getShiftBadge(startInput: string | Date): string {
 /**
  * Menentukan apakah pekerjaan mendesak (mulai kurang dari 60 menit dari sekarang).
  */
-export function isUrgentJob(startInput: string | Date): boolean {
+export function isUrgentJob(startInput: string | Date, nowMs?: number): boolean {
   const start = typeof startInput === 'string' ? new Date(startInput) : startInput
   if (isNaN(start.getTime())) return false
 
-  const now = Date.now()
+  const now = nowMs ?? Date.now()
   const diffMs = start.getTime() - now
   const diffMinutes = Math.floor(diffMs / (1000 * 60))
 

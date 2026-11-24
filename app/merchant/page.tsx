@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -21,6 +21,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 
 interface JobItem {
   id: string
@@ -63,8 +64,13 @@ export default function MerchantDashboardPage() {
     }
   }, [showToast])
 
-  useEffect(() => {
-    async function loadUserAndJobs() {
+  const loadUserAndJobs = useCallback(async (silent = false) => {
+    try {
+      if (!silent) {
+        setLoading(true)
+        setLoadingJobs(true)
+      }
+
       // Periksa query param ?posted=true untuk notifikasi sukses
       if (typeof window !== 'undefined') {
         const urlParams = new URLSearchParams(window.location.search)
@@ -126,13 +132,25 @@ export default function MerchantDashboardPage() {
         } else if (jobsData) {
           setJobs(jobsData as JobItem[])
         }
-        setLoadingJobs(false)
       }
-      setLoading(false)
+    } catch (err) {
+      console.error('Error saat memuat data dashboard merchant:', err)
+    } finally {
+      if (!silent) {
+        setLoadingJobs(false)
+        setLoading(false)
+      }
     }
-
-    loadUserAndJobs()
   }, [supabase])
+
+  useEffect(() => {
+    loadUserAndJobs(false)
+  }, [loadUserAndJobs])
+
+  // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa kedipan skeleton
+  useAutoRefresh(() => {
+    loadUserAndJobs(true)
+  }, 20000)
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
