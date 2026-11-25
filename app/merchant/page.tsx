@@ -10,7 +10,6 @@ import {
   PlusCircle,
   Users,
   Loader2,
-  Clock,
   CheckCircle,
   MapPin,
   Tag,
@@ -22,6 +21,12 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import {
+  VerificationBanner,
+  VerifiedBadge,
+  normalizeVerificationStatus,
+  type VerificationStatus,
+} from '@/components/shared/VerificationBanner'
 
 interface JobItem {
   id: string
@@ -40,7 +45,9 @@ export default function MerchantDashboardPage() {
   const supabase = createClient()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
-  const [isVerified, setIsVerified] = useState<boolean>(false)
+  const [verificationStatus, setVerificationStatus] =
+    useState<VerificationStatus>('pending')
+  const [verificationNote, setVerificationNote] = useState<string | null>(null)
   const [businessName, setBusinessName] = useState<string | null>(null)
   const [businessType, setBusinessType] = useState<string | null>(null)
   const [address, setAddress] = useState<string | null>(null)
@@ -87,17 +94,23 @@ export default function MerchantDashboardPage() {
       if (user) {
         setUserEmail(user.email ?? null)
 
-        // Baca profiles (full_name, verified)
+        // Baca profiles (full_name, verified, verification_status, verification_note)
         const { data: profile } = await supabase
           .from('profiles')
-          .select('full_name, verified')
+          .select('full_name, verified, verification_status, verification_note')
           .eq('id', user.id)
           .maybeSingle()
 
         setUserName(
           profile?.full_name || user.user_metadata?.full_name || 'Mitra UMKM'
         )
-        setIsVerified(Boolean(profile?.verified))
+        setVerificationStatus(
+          normalizeVerificationStatus(
+            profile?.verification_status,
+            profile?.verified
+          )
+        )
+        setVerificationNote(profile?.verification_note ?? null)
 
         // Baca data umkm_profiles
         const { data: umkmProfile } = await supabase
@@ -283,31 +296,12 @@ export default function MerchantDashboardPage() {
       </header>
 
       {/* Verification Status Alert */}
-      {!isVerified ? (
-        <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 shadow-xs mb-4 flex items-start gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
-            <Clock className="w-5 h-5 text-amber-600" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <span className="text-xs font-bold text-amber-900">
-                Akun kamu menunggu verifikasi admin
-              </span>
-              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-            </div>
-            <p className="text-[11px] sm:text-xs text-amber-800 leading-relaxed">
-              Data usaha dan foto tokomu sedang ditinjau oleh admin Labor2Go untuk menjamin keamanan komunitas pekerja.
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 mb-4 flex items-center gap-2.5">
-          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span className="text-xs font-bold text-emerald-800">
-            Usaha Terverifikasi
-          </span>
-        </div>
-      )}
+      <VerificationBanner
+        status={verificationStatus}
+        note={verificationNote}
+        roleLabel="umkm"
+        className="mb-4"
+      />
 
       {/* Profile Card */}
       <div className="p-4 rounded-2xl bg-white border border-gray-100 shadow-xs mb-4">
@@ -329,20 +323,17 @@ export default function MerchantDashboardPage() {
           )}
 
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-1.5 mb-0.5">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#E5EEFF] text-[#0B1C30] text-[10px] font-bold">
                 Pemilik Usaha / UMKM
               </span>
-              {isVerified && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold">
-                  <CheckCircle className="w-3 h-3 text-emerald-600" />
-                  Terverifikasi
-                </span>
-              )}
             </div>
-            <h2 className="text-base font-bold text-[#0B1C30] truncate">
-              {businessName || userName || 'Mitra Labor2Go'}
-            </h2>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="text-base font-bold text-[#0B1C30] truncate">
+                {businessName || userName || 'Mitra Labor2Go'}
+              </h2>
+              {verificationStatus === 'approved' && <VerifiedBadge />}
+            </div>
             <p className="text-xs text-gray-500 truncate">
               {userName} • {userEmail}
             </p>

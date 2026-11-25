@@ -23,6 +23,10 @@ export async function GET(request: Request) {
         data.user.user_metadata?.role ||
         (roleParam === 'umkm' ? 'umkm' : 'student')
 
+      if (finalRole === 'admin') {
+        return NextResponse.redirect(`${origin}/admin`)
+      }
+
       // Cek apakah profil detail (student_profiles atau umkm_profiles) sudah ada
       const detailTable = finalRole === 'umkm' ? 'umkm_profiles' : 'student_profiles'
       const { data: detailProfile } = await supabase

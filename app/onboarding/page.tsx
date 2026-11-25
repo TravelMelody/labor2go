@@ -39,6 +39,11 @@ export default function OnboardingPage() {
           .eq('id', user.id)
           .maybeSingle()
 
+        if (profile?.role === 'admin') {
+          router.replace('/admin')
+          return
+        }
+
         const role =
           profile?.role ||
           (user.user_metadata?.role === 'umkm' ? 'umkm' : 'student')

@@ -31,6 +31,37 @@ export function formatTimeWIB(
 }
 
 /**
+ * Format tanggal singkat dalam zona waktu WIB.
+ * Contoh: "25 Nov 2026"
+ */
+export function formatDateWIB(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return '-'
+
+  return new Intl.DateTimeFormat('id-ID', {
+    timeZone: 'Asia/Jakarta',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(date)
+}
+
+/**
+ * Format tanggal dan waktu lengkap dalam zona waktu WIB.
+ * Contoh: "25 Nov 2026, 14:05 WIB"
+ */
+export function formatFullDateTimeWIB(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return '-'
+
+  const datePart = formatDateWIB(date)
+  const timePart = formatTimeWIB(date, { includeSuffix: true })
+  if (datePart === '-' || timePart === '-') return '-'
+
+  return `${datePart}, ${timePart}`
+}
+
+/**
  * Format tanggal dan jam transaksi ke WIB:
  * "Hari ini, 09:00 WIB", "Kemarin, 20:30 WIB", atau "15 Sep, 18:00 WIB".
  */

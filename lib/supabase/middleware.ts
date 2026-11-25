@@ -37,11 +37,12 @@ export async function updateSession(request: NextRequest) {
   const isStudentRoute = pathname.startsWith('/student')
   const isMerchantRoute = pathname.startsWith('/merchant')
   const isOnboardingRoute = pathname.startsWith('/onboarding')
+  const isAdminRoute = pathname.startsWith('/admin')
   const isAuthRoute = pathname === '/login'
 
   // Jika belum login dan mencoba mengakses rute terproteksi
   if (!user) {
-    if (isStudentRoute || isMerchantRoute || isOnboardingRoute) {
+    if (isStudentRoute || isMerchantRoute || isOnboardingRoute || isAdminRoute) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       if (!isOnboardingRoute) {
@@ -60,6 +61,26 @@ export async function updateSession(request: NextRequest) {
     .maybeSingle()
 
   const role = profile?.role || user.user_metadata?.role || 'student'
+
+  // Role admin tidak perlu onboarding dan hanya boleh mengakses /admin
+  if (role === 'admin') {
+    if (isAdminRoute) {
+      return supabaseResponse
+    }
+    if (
+      isStudentRoute ||
+      isMerchantRoute ||
+      isOnboardingRoute ||
+      isAuthRoute ||
+      pathname === '/'
+    ) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin'
+      return NextResponse.redirect(url)
+    }
+    return supabaseResponse
+  }
+
   const detailTable = role === 'umkm' ? 'umkm_profiles' : 'student_profiles'
 
   // Cek apakah profil detail sudah ada
@@ -70,6 +91,17 @@ export async function updateSession(request: NextRequest) {
     .maybeSingle()
 
   const hasCompletedProfile = Boolean(detailProfile)
+
+  // 0. Rute Admin (/admin) oleh role non-admin -> arahkan ke beranda masing-masing
+  if (isAdminRoute) {
+    const url = request.nextUrl.clone()
+    if (!hasCompletedProfile) {
+      url.pathname = '/onboarding'
+    } else {
+      url.pathname = role === 'umkm' ? '/merchant' : '/student'
+    }
+    return NextResponse.redirect(url)
+  }
 
   // 1. Rute Onboarding (/onboarding)
   if (isOnboardingRoute) {

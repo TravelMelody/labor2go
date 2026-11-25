@@ -8,7 +8,6 @@ import {
   Search,
   SlidersHorizontal,
   Flame,
-  CheckCircle2,
   Wallet,
   Banknote,
   Utensils,
@@ -25,12 +24,19 @@ import { CAMPUS } from '@/lib/campus'
 import { formatRupiah, getFirstName } from '@/lib/format'
 import { JobCard, type JobFeedItem, type ApplicationStatus } from '@/components/student/JobCard'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import {
+  VerificationBanner,
+  VerifiedBadge,
+  normalizeVerificationStatus,
+  type VerificationStatus,
+} from '@/components/shared/VerificationBanner'
 
 interface StudentData {
   fullName: string
   university: string
   level: number
-  isVerified: boolean
+  verificationStatus: VerificationStatus
+  verificationNote: string | null
   walletBalance: number
 }
 
@@ -59,7 +65,7 @@ export default function StudentHomePage() {
       // 1. Ambil data profil dasar
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, verified, role')
+        .select('full_name, verified, verification_status, verification_note, role')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -83,7 +89,11 @@ export default function StudentHomePage() {
         university:
           studentProfile?.university || CAMPUS.name,
         level: studentProfile?.level || 1,
-        isVerified: Boolean(profile?.verified),
+        verificationStatus: normalizeVerificationStatus(
+          profile?.verification_status,
+          profile?.verified
+        ),
+        verificationNote: profile?.verification_note ?? null,
         walletBalance: wallet?.balance ? Number(wallet.balance) : 0,
       })
 
@@ -232,6 +242,14 @@ export default function StudentHomePage() {
           </div>
         ) : (
           <>
+            {student && (
+              <VerificationBanner
+                status={student.verificationStatus}
+                note={student.verificationNote}
+                roleLabel="student"
+              />
+            )}
+
             {/* TOP CARD: Greeting, Level Badge, Search & Saldo Dompet */}
             <section className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] flex flex-col gap-4 border border-gray-100">
               {/* Sapaan & Badge Level */}
@@ -241,14 +259,12 @@ export default function StudentHomePage() {
                     {getFirstName(student?.fullName).charAt(0)}
                   </div>
                   <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-bold text-base text-[#0B1C30] truncate">
                         Halo, {getFirstName(student?.fullName)}
                       </span>
-                      {student?.isVerified && (
-                        <span title="KTM Terverifikasi" className="inline-flex items-center">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        </span>
+                      {student?.verificationStatus === 'approved' && (
+                        <VerifiedBadge />
                       )}
                     </div>
                     <span className="text-xs text-gray-500 truncate">

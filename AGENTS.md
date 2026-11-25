@@ -35,6 +35,10 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
   Jangan insert ke tabel reviews dari client. Tabel reviews boleh dibaca (select).
   Saat embed profiles dari reviews, pakai hint FK karena ada dua relasi ke profiles
   (profiles!reviews_reviewer_id_fkey / profiles!reviews_reviewee_id_fkey).
+- Halaman /admin TIDAK memakai service role. Semua aksi admin lewat rpc: admin_set_verification,
+  resolve_withdrawal, admin_stats. Foto KTM hanya ditampilkan lewat signed URL berumur 60 detik
+  (supabase.storage.from('ktm').createSignedUrl(path, 60)); jangan simpan atau log URL itu.
+- Role admin tidak perlu onboarding dan hanya boleh mengakses /admin.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

@@ -120,6 +120,13 @@ export function EmailAuthModal({
             .maybeSingle()
 
           const targetRole = profile?.role || data.user.user_metadata?.role || role
+
+          if (targetRole === 'admin') {
+            router.push('/admin')
+            router.refresh()
+            return
+          }
+
           const detailTable = targetRole === 'umkm' ? 'umkm_profiles' : 'student_profiles'
 
           const { data: detailProfile } = await supabase

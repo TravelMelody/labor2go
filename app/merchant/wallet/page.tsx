@@ -64,6 +64,10 @@ async function MerchantWalletContent() {
     console.error('Gagal membaca profil pengguna untuk dompet merchant:', profileError)
   }
 
+  if (profile?.role === 'admin') {
+    redirect('/admin')
+  }
+
   if (profile?.role && profile.role !== 'umkm') {
     redirect('/student/wallet')
   }

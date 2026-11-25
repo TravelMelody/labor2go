@@ -63,6 +63,10 @@ async function StudentWalletContent() {
     console.error('Gagal membaca profil pengguna untuk dompet mahasiswa:', profileError)
   }
 
+  if (profile?.role === 'admin') {
+    redirect('/admin')
+  }
+
   if (profile?.role && profile.role !== 'student') {
     redirect('/merchant/wallet')
   }
