@@ -15,11 +15,11 @@ import {
 import { createClient } from '@/lib/supabase/client'
 import { formatRupiah } from '@/lib/format'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { WalletTransactionList } from '@/components/wallet/WalletTransactionList'
 import {
   WALLET_TX_PAGE_SIZE,
-  WalletTransactionList,
   type WalletTransactionItem,
-} from '@/components/wallet/WalletTransactionList'
+} from '@/lib/wallet'
 
 const MIN_WITHDRAWAL_AMOUNT = 10_000
 

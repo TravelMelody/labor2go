@@ -39,6 +39,12 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
   resolve_withdrawal, admin_stats. Foto KTM hanya ditampilkan lewat signed URL berumur 60 detik
   (supabase.storage.from('ktm').createSignedUrl(path, 60)); jangan simpan atau log URL itu.
 - Role admin tidak perlu onboarding dan hanya boleh mengakses /admin.
+- Setelah akun terverifikasi (profiles.verified = true), nama, NIM, kampus, foto KTM, nama usaha, dan foto
+  usaha TERKUNCI di database (error dari trigger). UI menampilkan field itu read-only dengan ikon kunci
+  dan JANGAN mengirimnya saat update. profiles hanya boleh di-update pada full_name dan phone.
+- Ajukan ulang verifikasi hanya lewat supabase.rpc('request_reverification'), dan hanya untuk
+  verification_status = 'rejected'.
+- Konstanta konfigurasi (email bantuan, nama level) disimpan di lib/config.ts dan lib/levels.ts.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

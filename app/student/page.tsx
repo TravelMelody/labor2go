@@ -27,9 +27,11 @@ import { useAutoRefresh } from '@/hooks/useAutoRefresh'
 import {
   VerificationBanner,
   VerifiedBadge,
+} from '@/components/shared/VerificationBanner'
+import {
   normalizeVerificationStatus,
   type VerificationStatus,
-} from '@/components/shared/VerificationBanner'
+} from '@/lib/verification'
 
 interface StudentData {
   fullName: string

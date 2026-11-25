@@ -2,21 +2,7 @@
 
 import React from 'react'
 import { Clock, AlertTriangle, CheckCircle2 } from 'lucide-react'
-
-export type VerificationStatus = 'pending' | 'approved' | 'rejected'
-
-export function normalizeVerificationStatus(
-  status: string | null | undefined,
-  verified?: boolean | null
-): VerificationStatus {
-  if (status === 'approved' || (status == null && Boolean(verified))) {
-    return 'approved'
-  }
-  if (status === 'rejected') {
-    return 'rejected'
-  }
-  return 'pending'
-}
+import type { VerificationStatus } from '@/lib/verification'
 
 interface VerificationBannerProps {
   status: VerificationStatus

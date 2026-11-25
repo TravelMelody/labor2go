@@ -6,7 +6,7 @@ import { StudentWalletView } from '@/components/student/StudentWalletView'
 import {
   WALLET_TX_PAGE_SIZE,
   type WalletTransactionItem,
-} from '@/components/wallet/WalletTransactionList'
+} from '@/lib/wallet'
 
 export const metadata = {
   title: 'Dana & Dompet – Labor2Go',

@@ -2,6 +2,7 @@
 
 import React, { useState, Suspense } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { Zap, ShieldCheck, Mail, AlertCircle } from 'lucide-react'
 import { RoleCard, UserRole } from '@/components/auth/RoleCard'
@@ -168,19 +169,19 @@ function LoginContent() {
       <footer className="text-center px-2 mt-auto">
         <p className="text-[11px] sm:text-xs text-gray-500 leading-relaxed">
           Dengan masuk, anda menyetujui{' '}
-          <a
-            href="#"
+          <Link
+            href="/legal/terms"
             className="font-semibold text-[#FF6B00] underline decoration-[#FF6B00]/40 hover:decoration-[#FF6B00]"
           >
-            Syarat & Ketentuan
-          </a>{' '}
+            Syarat &amp; Ketentuan
+          </Link>{' '}
           serta{' '}
-          <a
-            href="#"
+          <Link
+            href="/legal/privacy"
             className="font-semibold text-[#FF6B00] underline decoration-[#FF6B00]/40 hover:decoration-[#FF6B00]"
           >
             Kebijakan Privasi
-          </a>{' '}
+          </Link>{' '}
           Labor2Go.
         </p>
       </footer>

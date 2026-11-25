@@ -1,7 +1,7 @@
 'use client'
 
-import React, { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import React, { Suspense, useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft,
@@ -29,6 +29,8 @@ import {
 } from '@/lib/pricing'
 
 const QUICK_TITLES = ['Cuci Loyang', 'Bantu Kasir', 'Packing'] as const
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 interface UmkmLocationData {
   business_name: string | null
@@ -37,14 +39,20 @@ interface UmkmLocationData {
   lng: number | null
 }
 
-export default function MerchantPostJobPage() {
+function MerchantPostJobContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const templateIdParam = searchParams.get('template')
   const supabase = createClient()
 
   // Auth & Profile state
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [userId, setUserId] = useState<string | null>(null)
   const [umkmLocation, setUmkmLocation] = useState<UmkmLocationData | null>(null)
+  const [serviceFee, setServiceFee] = useState<number>(SERVICE_FEE_PER_WORKER)
+  const [appliedTemplateTitle, setAppliedTemplateTitle] = useState<string | null>(
+    null
+  )
 
   // Form states
   const [title, setTitle] = useState('')
@@ -69,36 +77,16 @@ export default function MerchantPostJobPage() {
   const [serverError, setServerError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState<boolean>(false)
 
-  // Proteksi Route & ambil data profil UMKM
+  // Proteksi Route & ambil data profil UMKM + template (jika ?template=<id>)
   useEffect(() => {
     async function checkAuthAndLoadProfile() {
-      // Inisialisasi waktu default (1 jam dari sekarang di Asia/Jakarta)
       const now = new Date()
-      const target = new Date(now.getTime() + 60 * 60 * 1000)
-
-      const dateFormatted = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Jakarta',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      }).format(target)
-
-      const timeFormatted = new Intl.DateTimeFormat('en-GB', {
-        timeZone: 'Asia/Jakarta',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      }).format(target)
-
       const todayFormatted = new Intl.DateTimeFormat('en-CA', {
         timeZone: 'Asia/Jakarta',
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
       }).format(now)
-
-      setStartDateStr(dateFormatted)
-      setStartTimeStr(timeFormatted)
       setTodayDateStr(todayFormatted)
 
       try {
@@ -134,26 +122,38 @@ export default function MerchantPostJobPage() {
           return
         }
 
-        // Cek kelengkapan onboarding di umkm_profiles
-        const { data: umkmProfile, error: umkmError } = await supabase
-          .from('umkm_profiles')
-          .select('business_name, address, lat, lng')
-          .eq('id', user.id)
-          .maybeSingle()
+        // Cek kelengkapan onboarding di umkm_profiles & biaya layanan di platform_settings
+        const [umkmRes, settingsRes] = await Promise.all([
+          supabase
+            .from('umkm_profiles')
+            .select('business_name, address, lat, lng')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase
+            .from('platform_settings')
+            .select('int_value')
+            .eq('key', 'service_fee_per_worker')
+            .maybeSingle(),
+        ])
 
-        if (umkmError) {
+        if (umkmRes.error) {
           console.error('Error membaca tabel umkm_profiles:', {
-            message: umkmError.message,
-            details: umkmError.details,
-            hint: umkmError.hint,
-            code: umkmError.code,
+            message: umkmRes.error.message,
+            details: umkmRes.error.details,
+            hint: umkmRes.error.hint,
+            code: umkmRes.error.code,
           })
         }
 
+        const umkmProfile = umkmRes.data
         if (!umkmProfile) {
           // Belum melengkapi onboarding
           router.replace('/onboarding')
           return
+        }
+
+        if (settingsRes.data?.int_value != null) {
+          setServiceFee(Number(settingsRes.data.int_value))
         }
 
         setUserId(user.id)
@@ -163,6 +163,68 @@ export default function MerchantPostJobPage() {
           lat: umkmProfile.lat ?? null,
           lng: umkmProfile.lng ?? null,
         })
+
+        // Cek ?template=<id> (hanya milik user; jika tidak valid abaikan)
+        let appliedTemplate = false
+        if (templateIdParam && UUID_REGEX.test(templateIdParam)) {
+          const { data: tpl, error: tplError } = await supabase
+            .from('job_templates')
+            .select('id, title, description, duration_hours, pay_amount, slots')
+            .eq('id', templateIdParam)
+            .eq('umkm_id', user.id)
+            .maybeSingle()
+
+          if (tplError) {
+            console.warn('Gagal membaca template lowongan:', tplError.message)
+          } else if (tpl) {
+            appliedTemplate = true
+            setAppliedTemplateTitle(tpl.title)
+            setTitle(tpl.title)
+            setDescription(tpl.description || '')
+
+            const parsedDuration = Math.min(
+              12,
+              Math.max(1, Math.round(Number(tpl.duration_hours) || 2))
+            )
+            setDurationHours(parsedDuration)
+
+            const parsedSlots = Math.min(
+              10,
+              Math.max(1, Math.round(Number(tpl.slots) || 1))
+            )
+            setSlots(parsedSlots)
+
+            const parsedPay = Math.max(10000, Number(tpl.pay_amount) || 50000)
+            setPayAmount(parsedPay)
+            setPayAmountInput(parsedPay.toLocaleString('id-ID'))
+
+            // Tanggal dan jam mulai tetap harus diisi oleh user
+            setStartDateStr('')
+            setStartTimeStr('')
+          }
+        }
+
+        if (!appliedTemplate) {
+          // Inisialisasi waktu default (1 jam dari sekarang di Asia/Jakarta)
+          const target = new Date(now.getTime() + 60 * 60 * 1000)
+
+          const dateFormatted = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Jakarta',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(target)
+
+          const timeFormatted = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Asia/Jakarta',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          }).format(target)
+
+          setStartDateStr(dateFormatted)
+          setStartTimeStr(timeFormatted)
+        }
       } catch (err: unknown) {
         console.error('Terjadi kesalahan saat memverifikasi akses merchant:', err)
         router.replace('/login')
@@ -172,7 +234,7 @@ export default function MerchantPostJobPage() {
     }
 
     checkAuthAndLoadProfile()
-  }, [router, supabase])
+  }, [router, supabase, templateIdParam])
 
   // Hitung rentang jam live (WIB)
   const getTimeRangePreview = (): string => {
@@ -234,7 +296,7 @@ export default function MerchantPostJobPage() {
 
   // Perhitungan Estimasi Biaya
   const totalWage = payAmount * slots
-  const totalServiceFee = SERVICE_FEE_PER_WORKER * slots
+  const totalServiceFee = serviceFee * slots
   const totalEstimasi = totalWage + totalServiceFee
 
   // Status kesesuaian UMR
@@ -411,6 +473,17 @@ export default function MerchantPostJobPage() {
 
       {/* Main Content Form */}
       <main className="flex-1 px-4 pt-4 pb-28 flex flex-col gap-4">
+        {appliedTemplateTitle && (
+          <div className="p-3.5 rounded-2xl bg-[#EFF4FF] border border-blue-200 text-[#0B1C30] text-xs flex items-start gap-2.5">
+            <BookmarkCheck className="w-4 h-4 text-[#FF6B00] shrink-0 mt-0.5" />
+            <div className="flex-1 leading-relaxed">
+              Diisi dari template{' '}
+              <span className="font-bold">&ldquo;{appliedTemplateTitle}&rdquo;</span>.
+              Silakan pilih tanggal dan jam mulai lowongan.
+            </div>
+          </div>
+        )}
+
         {serverError && (
           <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
@@ -751,7 +824,7 @@ export default function MerchantPostJobPage() {
                 <div className="flex items-center gap-1">
                   <span>
                     Biaya Layanan ({slots} mhs × Rp{' '}
-                    {SERVICE_FEE_PER_WORKER.toLocaleString('id-ID')})
+                    {serviceFee.toLocaleString('id-ID')})
                   </span>
                   <Info className="w-3 h-3 text-gray-400" />
                 </div>
@@ -866,5 +939,19 @@ export default function MerchantPostJobPage() {
         </form>
       </main>
     </div>
+  )
+}
+
+export default function MerchantPostJobPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F8F9FF]">
+          <Loader2 className="w-6 h-6 animate-spin text-[#0B1C30]" />
+        </div>
+      }
+    >
+      <MerchantPostJobContent />
+    </Suspense>
   )
 }
