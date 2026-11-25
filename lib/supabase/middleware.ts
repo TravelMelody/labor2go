@@ -43,13 +43,14 @@ export async function updateSession(request: NextRequest) {
 
   const isStudentRoute = pathname.startsWith('/student')
   const isMerchantRoute = pathname.startsWith('/merchant')
+  const isChatRoute = pathname.startsWith('/chat')
   const isOnboardingRoute = pathname.startsWith('/onboarding')
   const isAdminRoute = pathname.startsWith('/admin')
   const isAuthRoute = pathname === '/login'
 
   // Jika belum login dan mencoba mengakses rute terproteksi
   if (!user) {
-    if (isStudentRoute || isMerchantRoute || isOnboardingRoute || isAdminRoute) {
+    if (isStudentRoute || isMerchantRoute || isChatRoute || isOnboardingRoute || isAdminRoute) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       if (!isOnboardingRoute) {
@@ -77,6 +78,7 @@ export async function updateSession(request: NextRequest) {
     if (
       isStudentRoute ||
       isMerchantRoute ||
+      isChatRoute ||
       isOnboardingRoute ||
       isAuthRoute ||
       pathname === '/'
@@ -144,6 +146,16 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
+    return supabaseResponse
+  }
+
+  // 2b. Rute Chat (/chat) untuk role non-admin yang sudah melengkapi profil
+  if (isChatRoute) {
+    if (!hasCompletedProfile) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/onboarding'
+      return NextResponse.redirect(url)
+    }
     return supabaseResponse
   }
 

@@ -259,8 +259,9 @@ async function JobDetailContent({ params }: PageProps) {
     isOwner,
   }
 
-  // 6. Cek lamaran untuk mahasiswa (role student)
+  // 6. Cek lamaran untuk mahasiswa (role student) & kontak merchant jika sudah accepted
   let initialApplication: ApplicationData | null = null
+  let initialMerchantPhone: string | null = null
   if (currentUser.role === 'student') {
     const { data: appData, error: appError } = await supabase
       .from('applications')
@@ -278,6 +279,36 @@ async function JobDetailContent({ params }: PageProps) {
         id: appData.id,
         status: appData.status as ApplicationData['status'],
       }
+
+      if (appData.status === 'accepted') {
+        const { data: contactData, error: contactError } = await supabase.rpc(
+          'get_counterpart_contact',
+          { p_application_id: appData.id }
+        )
+
+        if (contactError) {
+          if (contactError.code === 'P0001') {
+            console.warn(
+              'Peringatan get_counterpart_contact di detail lowongan:',
+              contactError.message
+            )
+          } else {
+            console.error(
+              'Error get_counterpart_contact di detail lowongan:',
+              contactError
+            )
+          }
+        } else {
+          const rawContact = contactData as
+            | { full_name?: string | null; phone?: string | null }
+            | Array<{ full_name?: string | null; phone?: string | null }>
+            | null
+          const contactRow = Array.isArray(rawContact)
+            ? rawContact[0] ?? null
+            : rawContact
+          initialMerchantPhone = contactRow?.phone || null
+        }
+      }
     }
   }
 
@@ -286,6 +317,7 @@ async function JobDetailContent({ params }: PageProps) {
       job={jobDetail}
       currentUser={currentUser}
       initialApplication={initialApplication}
+      initialMerchantPhone={initialMerchantPhone}
       initialReviews={initialReviews}
     />
   )

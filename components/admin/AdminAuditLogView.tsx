@@ -42,6 +42,8 @@ function translateAction(action: string): string {
       return 'Memproses penarikan dana'
     case 'withdrawal_rejected':
       return 'Menolak penarikan dana'
+    case 'phone_viewed':
+      return 'Melihat nomor HP pengguna'
     default:
       return action
   }

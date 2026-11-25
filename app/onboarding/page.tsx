@@ -32,12 +32,31 @@ export default function OnboardingPage() {
 
         setUserId(user.id)
 
-        // Ambil data profil dasar
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, phone, role')
-          .eq('id', user.id)
-          .maybeSingle()
+        // Ambil data profil dasar dan nomor HP milik sendiri via RPC
+        const [profileRes, phoneRes] = await Promise.all([
+          supabase
+            .from('profiles')
+            .select('full_name, role')
+            .eq('id', user.id)
+            .maybeSingle(),
+          supabase.rpc('get_my_phone'),
+        ])
+
+        const profile = profileRes.data
+        if (profileRes.error) {
+          if (profileRes.error.code === 'P0001') {
+            console.warn('Peringatan saat membaca profil onboarding:', profileRes.error.message)
+          } else {
+            console.error('Gagal membaca profil onboarding:', profileRes.error)
+          }
+        }
+        if (phoneRes.error) {
+          if (phoneRes.error.code === 'P0001') {
+            console.warn('Peringatan saat mengambil nomor HP onboarding:', phoneRes.error.message)
+          } else {
+            console.error('Gagal mengambil nomor HP onboarding:', phoneRes.error)
+          }
+        }
 
         if (profile?.role === 'admin') {
           router.replace('/admin')
@@ -55,7 +74,7 @@ export default function OnboardingPage() {
             user.user_metadata?.name ||
             ''
         )
-        setPhone(profile?.phone || '')
+        setPhone(typeof phoneRes.data === 'string' ? phoneRes.data : '')
 
         // Cek apakah profil detail sudah ada
         const detailTable = role === 'umkm' ? 'umkm_profiles' : 'student_profiles'

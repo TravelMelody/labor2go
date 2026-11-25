@@ -11,6 +11,7 @@ import {
   Banknote,
   FileText,
   Store,
+  MessageCircle,
   MessageSquare,
   MapPin,
   Footprints,
@@ -35,11 +36,13 @@ import {
   formatRupiah,
   formatTimeRangeWIB,
   formatDurationHours,
+  formatWhatsAppUrl,
   getShiftBadge,
   isUrgentJob,
 } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { useUnreadMessages } from '@/hooks/useUnreadMessages'
 import { StarRating } from '@/components/reviews/StarRating'
 import {
   REVIEW_SELECT,
@@ -92,6 +95,7 @@ interface JobDetailViewProps {
   job: JobDetailData
   currentUser: CurrentUserData
   initialApplication: ApplicationData | null
+  initialMerchantPhone?: string | null
   initialReviews: ReviewItem[]
 }
 
@@ -99,6 +103,7 @@ export function JobDetailView({
   job,
   currentUser,
   initialApplication,
+  initialMerchantPhone = null,
   initialReviews,
 }: JobDetailViewProps) {
   const router = useRouter()
@@ -106,6 +111,9 @@ export function JobDetailView({
 
   const [application, setApplication] = useState<ApplicationData | null>(
     initialApplication
+  )
+  const [merchantPhone, setMerchantPhone] = useState<string | null>(
+    initialMerchantPhone ?? null
   )
   const [avgRating, setAvgRating] = useState<number | null>(job.avg_rating)
   const [reviewCount, setReviewCount] = useState<number>(job.review_count)
@@ -120,10 +128,19 @@ export function JobDetailView({
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success')
   const [showChatTooltip, setShowChatTooltip] = useState(false)
 
+  const isAcceptedStudent =
+    currentUser.role === 'student' &&
+    application?.status === 'accepted' &&
+    Boolean(application.id)
+
+  const { unreadByAppId } = useUnreadMessages(currentUser.id, {
+    enabled: isAcceptedStudent,
+  })
+
   const refreshReviewsAndRating = useCallback(async () => {
     try {
       const limit = showingAllReviewsRef.current ? 20 : 3
-      const [ratingRes, reviewsRes] = await Promise.all([
+      const [ratingRes, reviewsRes, appRes] = await Promise.all([
         supabase
           .from('profile_ratings')
           .select('avg_rating, review_count')
@@ -135,6 +152,14 @@ export function JobDetailView({
           .eq('reviewee_id', job.umkm_id)
           .order('created_at', { ascending: false })
           .limit(limit),
+        currentUser.role === 'student'
+          ? supabase
+              .from('applications')
+              .select('id, status')
+              .eq('job_id', job.id)
+              .eq('student_id', currentUser.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
       ])
 
       if (!ratingRes.error && ratingRes.data) {
@@ -150,10 +175,49 @@ export function JobDetailView({
       if (!reviewsRes.error && reviewsRes.data) {
         setReviews(normalizeReviewRows(reviewsRes.data as RawReviewRow[]))
       }
+
+      if (currentUser.role === 'student' && !appRes.error) {
+        if (appRes.data) {
+          setApplication({
+            id: appRes.data.id,
+            status: appRes.data.status as ApplicationData['status'],
+          })
+          if (appRes.data.status === 'accepted') {
+            const { data: contactData, error: contactError } = await supabase.rpc(
+              'get_counterpart_contact',
+              { p_application_id: appRes.data.id }
+            )
+            if (contactError) {
+              if (contactError.code === 'P0001') {
+                console.warn(
+                  'Peringatan refresh get_counterpart_contact:',
+                  contactError.message
+                )
+              } else {
+                console.error('Error refresh get_counterpart_contact:', contactError)
+              }
+            } else {
+              const rawContact = contactData as
+                | { full_name?: string | null; phone?: string | null }
+                | Array<{ full_name?: string | null; phone?: string | null }>
+                | null
+              const contactRow = Array.isArray(rawContact)
+                ? rawContact[0] ?? null
+                : rawContact
+              setMerchantPhone(contactRow?.phone || null)
+            }
+          } else {
+            setMerchantPhone(null)
+          }
+        } else {
+          setApplication(null)
+          setMerchantPhone(null)
+        }
+      }
     } catch (err) {
       console.error('Gagal memperbarui ulasan merchant:', err)
     }
-  }, [supabase, job.umkm_id])
+  }, [supabase, job.umkm_id, job.id, currentUser.role, currentUser.id])
 
   useAutoRefresh(() => {
     void refreshReviewsAndRating()
@@ -610,68 +674,124 @@ export function JobDetailView({
 
             {/* 4. Kartu Merchant */}
             <div className="pt-1">
-              <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 min-w-0 flex-1">
-                  {job.business_photo ? (
-                    <img
-                      src={job.business_photo}
-                      alt={job.business_name}
-                      className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-200"
-                    />
+              <div className="p-3 bg-gray-50/80 rounded-xl border border-gray-100 flex flex-col gap-2.5">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {job.business_photo ? (
+                      <img
+                        src={job.business_photo}
+                        alt={job.business_name}
+                        className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-200"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-orange-100 text-[#FF6B00] font-extrabold text-sm flex items-center justify-center shrink-0 border border-orange-200">
+                        {merchantInitial}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col min-w-0">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-bold text-xs sm:text-sm text-[#0B1C30] truncate">
+                          {job.owner_name}
+                        </span>
+                        <span className="text-xs text-gray-400 shrink-0">|</span>
+                        <span className="text-xs text-gray-600 truncate">
+                          {job.business_name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                        {hasReviews ? (
+                          <>
+                            <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
+                            <span className="font-semibold text-gray-700">
+                              {Number(avgRating).toFixed(1)}
+                            </span>
+                            <span>({reviewCount} ulasan)</span>
+                          </>
+                        ) : (
+                          <span className="text-emerald-700 font-semibold">
+                            Merchant Terdaftar
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Tombol Chat (Aktif jika mahasiswa sudah diterima, selain itu nonaktif + tooltip) */}
+                  {isAcceptedStudent && application ? (
+                    <Link
+                      href={`/chat/${application.id}`}
+                      aria-label="Chat dengan merchant"
+                      title="Chat dengan merchant"
+                      className="relative w-10 h-10 rounded-full bg-orange-50 border border-orange-200 flex items-center justify-center text-[#FF6B00] shadow-xs hover:bg-orange-100 active:scale-95 transition-all shrink-0"
+                    >
+                      <MessageSquare className="w-5 h-5" />
+                      {(unreadByAppId[application.id] ?? 0) > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-rose-600 text-white text-[10px] font-extrabold flex items-center justify-center leading-none ring-2 ring-white">
+                          {unreadByAppId[application.id] > 99
+                            ? '99+'
+                            : unreadByAppId[application.id]}
+                        </span>
+                      )}
+                    </Link>
                   ) : (
-                    <div className="w-11 h-11 rounded-full bg-orange-100 text-[#FF6B00] font-extrabold text-sm flex items-center justify-center shrink-0 border border-orange-200">
-                      {merchantInitial}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowChatTooltip((prev) => !prev)}
+                        onMouseEnter={() => setShowChatTooltip(true)}
+                        onMouseLeave={() => setShowChatTooltip(false)}
+                        aria-label="Chat pemilik toko"
+                        className="w-10 h-10 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-400 shadow-xs hover:border-gray-300 transition-colors cursor-not-allowed"
+                      >
+                        <MessageSquare className="w-5 h-5 text-gray-400" />
+                      </button>
+
+                      {showChatTooltip && (
+                        <div className="absolute right-0 bottom-full mb-2 w-48 p-2 rounded-xl bg-gray-900 text-white text-[11px] text-center shadow-xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+                          Chat terbuka setelah lamaranmu diterima
+                        </div>
+                      )}
                     </div>
                   )}
+                </div>
 
-                  <div className="flex flex-col min-w-0">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="font-bold text-xs sm:text-sm text-[#0B1C30] truncate">
-                        {job.owner_name}
-                      </span>
-                      <span className="text-xs text-gray-400 shrink-0">|</span>
-                      <span className="text-xs text-gray-600 truncate">
-                        {job.business_name}
-                      </span>
-                    </div>
+                {/* Kontak WhatsApp Merchant (khusus mahasiswa yang lamaran sudah diterima) */}
+                {isAcceptedStudent && (() => {
+                  const waUrl = formatWhatsAppUrl(
+                    merchantPhone,
+                    `Halo ${job.owner_name}, saya pekerja yang diterima untuk lowongan "${job.title}" di Labor2Go.`
+                  )
+                  return (
+                    <div className="pt-2.5 border-t border-gray-200/70 flex items-center justify-between gap-2">
+                      <div className="text-xs min-w-0">
+                        <span className="text-gray-400 block text-[10px] uppercase font-bold">
+                          Nomor WhatsApp
+                        </span>
+                        <span className="font-bold text-gray-800 truncate block">
+                          {merchantPhone || 'Nomor tidak tersedia'}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
-                      {hasReviews ? (
-                        <>
-                          <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
-                          <span className="font-semibold text-gray-700">
-                            {Number(avgRating).toFixed(1)}
-                          </span>
-                          <span>({reviewCount} ulasan)</span>
-                        </>
+                      {waUrl ? (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5 fill-white" />
+                          <span>Hubungi via WA</span>
+                        </a>
                       ) : (
-                        <span className="text-emerald-700 font-semibold">
-                          Merchant Terdaftar
+                        <span className="text-[11px] text-gray-400 italic shrink-0">
+                          WA belum diatur
                         </span>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Tombol Chat Nonaktif dengan Tooltip */}
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setShowChatTooltip((prev) => !prev)}
-                    onMouseEnter={() => setShowChatTooltip(true)}
-                    onMouseLeave={() => setShowChatTooltip(false)}
-                    aria-label="Chat pemilik toko"
-                    className="w-10 h-10 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-400 shadow-xs hover:border-gray-300 transition-colors cursor-not-allowed"
-                  >
-                    <MessageSquare className="w-5 h-5 text-gray-400" />
-                  </button>
-
-                  {showChatTooltip && (
-                    <div className="absolute right-0 bottom-full mb-2 w-48 p-2 rounded-xl bg-gray-900 text-white text-[11px] text-center shadow-xl z-50 pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-                      Chat terbuka setelah lamaranmu diterima
-                    </div>
-                  )}
-                </div>
+                  )
+                })()}
               </div>
             </div>
           </div>

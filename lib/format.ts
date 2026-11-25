@@ -105,6 +105,39 @@ export function formatDateTimeWIB(dateInput: string | Date): string {
 }
 
 /**
+ * Mengembalikan kunci tanggal YYYY-MM-DD dalam zona waktu WIB (Asia/Jakarta).
+ */
+export function getWibDateKey(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return ''
+
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date)
+}
+
+/**
+ * Format pemisah tanggal chat dalam zona waktu WIB:
+ * "Hari ini", "Kemarin", atau tanggal WIB (mis. "25 Nov 2026").
+ */
+export function formatChatDateSeparatorWIB(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return '-'
+
+  const now = new Date()
+  const dateKey = getWibDateKey(date)
+  const todayKey = getWibDateKey(now)
+  const yesterdayKey = getWibDateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+
+  if (dateKey === todayKey) return 'Hari ini'
+  if (dateKey === yesterdayKey) return 'Kemarin'
+  return formatDateWIB(date)
+}
+
+/**
  * Format rentang waktu mulai hingga selesai dalam WIB.
  * Contoh: "09:00 - 13:00 WIB"
  */

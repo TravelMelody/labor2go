@@ -1,5 +1,7 @@
+import React, { Suspense } from "react";
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { FlashToast } from "@/components/shared/FlashToast";
 import "./globals.css";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -24,6 +26,9 @@ export default function RootLayout({
       className={`${plusJakartaSans.variable} font-sans h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-[#F8F9FF] text-[#0B1C30]">
+        <Suspense fallback={null}>
+          <FlashToast />
+        </Suspense>
         {children}
       </body>
     </html>

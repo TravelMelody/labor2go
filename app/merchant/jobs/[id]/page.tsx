@@ -15,7 +15,6 @@ interface PageProps {
 interface ProfileRecord {
   id: string
   full_name: string | null
-  phone: string | null
   verified: boolean
 }
 
@@ -197,27 +196,56 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
   let studentProfilesMap: Record<string, StudentProfileRecord> = {}
   let ratingsMap: Record<string, ProfileRatingRecord> = {}
   let myReviewsMap: Record<string, number> = {}
+  const acceptedPhoneMap: Record<string, string | null> = {}
+
+  const acceptedApps = rawApps.filter((a) => a.status === 'accepted')
 
   if (studentIds.length > 0) {
-    const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes] = await Promise.all([
-      supabase
-        .from('profiles')
-        .select('id, full_name, phone, verified')
-        .in('id', studentIds),
-      supabase
-        .from('student_profiles')
-        .select('id, university, skills, level, completed_jobs')
-        .in('id', studentIds),
-      supabase
-        .from('profile_ratings')
-        .select('user_id, avg_rating, review_count')
-        .in('user_id', studentIds),
-      supabase
-        .from('reviews')
-        .select('reviewee_id, rating')
-        .eq('job_id', id)
-        .eq('reviewer_id', user.id),
-    ])
+    const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes, ...contactResults] =
+      await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, verified')
+          .in('id', studentIds),
+        supabase
+          .from('student_profiles')
+          .select('id, university, skills, level, completed_jobs')
+          .in('id', studentIds),
+        supabase
+          .from('profile_ratings')
+          .select('user_id, avg_rating, review_count')
+          .in('user_id', studentIds),
+        supabase
+          .from('reviews')
+          .select('reviewee_id, rating')
+          .eq('job_id', id)
+          .eq('reviewer_id', user.id),
+        ...acceptedApps.map((app) =>
+          supabase.rpc('get_counterpart_contact', {
+            p_application_id: app.id,
+          })
+        ),
+      ])
+
+    acceptedApps.forEach((app, idx) => {
+      const res = contactResults[idx]
+      if (!res) return
+      if (res.error) {
+        if (res.error.code === 'P0001') {
+          console.warn('Peringatan get_counterpart_contact pelamar diterima:', res.error.message)
+        } else {
+          console.error('Error get_counterpart_contact pelamar diterima:', res.error)
+        }
+        acceptedPhoneMap[app.id] = null
+        return
+      }
+      const rawContact = res.data as
+        | { full_name?: string | null; phone?: string | null }
+        | Array<{ full_name?: string | null; phone?: string | null }>
+        | null
+      const contactRow = Array.isArray(rawContact) ? rawContact[0] ?? null : rawContact
+      acceptedPhoneMap[app.id] = contactRow?.phone || null
+    })
 
     if (profilesRes.error) {
       console.error('Error saat membaca profiles pelamar di server:', profilesRes.error)
@@ -276,6 +304,8 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
       checked_out_at: app.checked_out_at || null,
       created_at: app.created_at,
       my_review_rating: myReviewsMap[app.student_id] ?? null,
+      counterpart_phone:
+        app.status === 'accepted' ? (acceptedPhoneMap[app.id] ?? null) : null,
       payment: rawPay
         ? {
             id: rawPay.id,
@@ -287,7 +317,6 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
       student: {
         id: app.student_id,
         full_name: prof?.full_name || 'Mahasiswa',
-        phone: prof?.phone || null,
         verified: Boolean(prof?.verified),
         university: sp?.university || 'Universitas Negeri Semarang',
         skills: Array.isArray(sp?.skills) ? sp.skills : [],

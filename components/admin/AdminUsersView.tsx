@@ -17,7 +17,6 @@ type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected'
 interface UserProfileRow {
   id: string
   full_name: string | null
-  phone: string | null
   role: 'student' | 'umkm' | 'admin'
   verification_status: 'pending' | 'approved' | 'rejected'
   no_show_count: number
@@ -63,7 +62,7 @@ export function AdminUsersView() {
       let query = supabase
         .from('profiles')
         .select(
-          'id, full_name, phone, role, verification_status, no_show_count, created_at',
+          'id, full_name, role, verification_status, no_show_count, created_at',
           { count: 'exact' }
         )
 
@@ -282,9 +281,6 @@ export function AdminUsersView() {
                       <p className="font-bold text-[#0B1C30]">
                         {u.full_name?.trim() || 'Tanpa Nama'}
                       </p>
-                      {u.phone && (
-                        <p className="text-[11px] text-gray-500">{u.phone}</p>
-                      )}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       {getRoleBadge(u.role)}

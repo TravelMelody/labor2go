@@ -39,10 +39,10 @@ async function StudentEditContent() {
     redirect('/login?redirectTo=/student/account/edit')
   }
 
-  const [profileRes, studentRes] = await Promise.all([
+  const [profileRes, studentRes, phoneRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, phone, verified, role')
+      .select('full_name, verified, role')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -50,6 +50,7 @@ async function StudentEditContent() {
       .select('nim, university, skills')
       .eq('id', user.id)
       .maybeSingle(),
+    supabase.rpc('get_my_phone'),
   ])
 
   if (profileRes.error) {
@@ -57,6 +58,13 @@ async function StudentEditContent() {
   }
   if (studentRes.error) {
     console.error('Gagal membaca student_profiles edit:', studentRes.error)
+  }
+  if (phoneRes.error) {
+    if (phoneRes.error.code === 'P0001') {
+      console.warn('Peringatan saat mengambil nomor HP edit mahasiswa:', phoneRes.error.message)
+    } else {
+      console.error('Gagal mengambil nomor HP edit mahasiswa:', phoneRes.error)
+    }
   }
 
   const role = profileRes.data?.role || user.user_metadata?.role || 'student'
@@ -74,7 +82,7 @@ async function StudentEditContent() {
       initialFullName={
         profileRes.data?.full_name || user.user_metadata?.full_name || ''
       }
-      initialPhone={profileRes.data?.phone || ''}
+      initialPhone={typeof phoneRes.data === 'string' ? phoneRes.data : ''}
       initialUniversity={studentRes.data?.university || CAMPUS.name}
       initialNim={studentRes.data?.nim || ''}
       initialSkills={

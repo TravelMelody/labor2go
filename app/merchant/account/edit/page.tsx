@@ -38,10 +38,10 @@ async function MerchantEditContent() {
     redirect('/login?redirectTo=/merchant/account/edit')
   }
 
-  const [profileRes, umkmRes] = await Promise.all([
+  const [profileRes, umkmRes, phoneRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, phone, verified, role')
+      .select('full_name, verified, role')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -49,6 +49,7 @@ async function MerchantEditContent() {
       .select('business_name, business_type, address, lat, lng, photo_url')
       .eq('id', user.id)
       .maybeSingle(),
+    supabase.rpc('get_my_phone'),
   ])
 
   if (profileRes.error) {
@@ -56,6 +57,13 @@ async function MerchantEditContent() {
   }
   if (umkmRes.error) {
     console.error('Gagal membaca umkm_profiles edit:', umkmRes.error)
+  }
+  if (phoneRes.error) {
+    if (phoneRes.error.code === 'P0001') {
+      console.warn('Peringatan saat mengambil nomor HP edit merchant:', phoneRes.error.message)
+    } else {
+      console.error('Gagal mengambil nomor HP edit merchant:', phoneRes.error)
+    }
   }
 
   const role = profileRes.data?.role || user.user_metadata?.role || 'student'
@@ -73,7 +81,7 @@ async function MerchantEditContent() {
       initialFullName={
         profileRes.data?.full_name || user.user_metadata?.full_name || ''
       }
-      initialPhone={profileRes.data?.phone || ''}
+      initialPhone={typeof phoneRes.data === 'string' ? phoneRes.data : ''}
       initialBusinessName={umkmRes.data?.business_name || ''}
       initialBusinessType={umkmRes.data?.business_type || 'F&B'}
       initialAddress={umkmRes.data?.address || ''}

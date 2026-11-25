@@ -45,7 +45,6 @@ interface RawVerificationProfile {
   id: string
   role: 'student' | 'umkm'
   full_name: string | null
-  phone: string | null
   verified: boolean
   verification_status: VerificationTab
   verification_note: string | null
@@ -58,12 +57,18 @@ interface VerificationItem {
   id: string
   role: 'student' | 'umkm'
   full_name: string | null
-  phone: string | null
   verification_status: VerificationTab
   verification_note: string | null
   created_at: string
   student_detail: StudentProfileDetail | null
   umkm_detail: UmkmProfileDetail | null
+}
+
+interface CardPhoneState {
+  phone: string | null
+  loaded: boolean
+  loading: boolean
+  error: string | null
 }
 
 function pickOne<T>(val: T | T[] | null | undefined): T | null {
@@ -111,6 +116,7 @@ export function AdminVerificationView() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const inFlightRef = useRef(false)
+  const [phoneMap, setPhoneMap] = useState<Record<string, CardPhoneState>>({})
 
   // Toast
   const [toast, setToast] = useState<{
@@ -153,7 +159,7 @@ export function AdminVerificationView() {
       const { data, error } = await supabase
         .from('profiles')
         .select(
-          'id, role, full_name, phone, verified, verification_status, verification_note, created_at, student_profiles(nim, university, skills, ktm_url), umkm_profiles(business_name, business_type, address, lat, lng, photo_url)'
+          'id, role, full_name, verified, verification_status, verification_note, created_at, student_profiles(nim, university, skills, ktm_url), umkm_profiles(business_name, business_type, address, lat, lng, photo_url)'
         )
         .in('role', ['student', 'umkm'])
         .eq('verification_status', tab)
@@ -178,7 +184,6 @@ export function AdminVerificationView() {
           id: row.id,
           role: row.role,
           full_name: row.full_name,
-          phone: row.phone,
           verification_status: row.verification_status,
           verification_note: row.verification_note,
           created_at: row.created_at,
@@ -268,6 +273,92 @@ export function AdminVerificationView() {
       fetchItems('pending', true)
     }
   }, 20000)
+
+  const handleRevealPhone = async (userId: string) => {
+    const current = phoneMap[userId]
+    if (current?.loading || current?.loaded) return
+
+    setPhoneMap((prev) => ({
+      ...prev,
+      [userId]: { phone: null, loaded: false, loading: true, error: null },
+    }))
+
+    try {
+      const { data, error } = await supabase.rpc('admin_get_phone', {
+        p_user_id: userId,
+      })
+
+      if (error) {
+        if (error.code === 'P0001') {
+          console.warn('Peringatan saat mengambil nomor HP pengguna:', error.message)
+        } else {
+          console.error('Gagal mengambil nomor HP pengguna via admin_get_phone:', error)
+        }
+        setPhoneMap((prev) => ({
+          ...prev,
+          [userId]: {
+            phone: null,
+            loaded: false,
+            loading: false,
+            error: error.message || 'Gagal memuat no. HP',
+          },
+        }))
+        return
+      }
+
+      const phoneVal = typeof data === 'string' && data.trim() ? data.trim() : null
+      setPhoneMap((prev) => ({
+        ...prev,
+        [userId]: { phone: phoneVal, loaded: true, loading: false, error: null },
+      }))
+    } catch (err) {
+      console.error('Kesalahan tak terduga saat memanggil admin_get_phone:', err)
+      setPhoneMap((prev) => ({
+        ...prev,
+        [userId]: {
+          phone: null,
+          loaded: false,
+          loading: false,
+          error: 'Gagal memuat no. HP',
+        },
+      }))
+    }
+  }
+
+  const renderCardPhoneValue = (userId: string) => {
+    const state = phoneMap[userId]
+    if (state?.loaded) {
+      return (
+        <span className="font-semibold text-[#0B1C30] flex items-center gap-1">
+          <Phone className="w-3.5 h-3.5 text-[#FF6B00]" />
+          {state.phone || '-'}
+        </span>
+      )
+    }
+    if (state?.loading) {
+      return (
+        <span className="font-semibold text-gray-500 flex items-center gap-1">
+          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#FF6B00]" />
+          <span>Memuat...</span>
+        </span>
+      )
+    }
+    return (
+      <div className="flex flex-col items-end gap-0.5">
+        <button
+          type="button"
+          onClick={() => void handleRevealPhone(userId)}
+          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-orange-50 border border-gray-200 hover:border-orange-200 text-[#0B1C30] hover:text-[#FF6B00] text-[11px] font-bold transition-colors cursor-pointer"
+        >
+          <Phone className="w-3 h-3 text-[#FF6B00]" />
+          <span>{state?.error ? 'Coba Lagi' : 'Lihat No. HP'}</span>
+        </button>
+        {state?.error && (
+          <span className="text-[10px] text-red-600">{state.error}</span>
+        )}
+      </div>
+    )
+  }
 
   const handleOpenKtm = async (item: VerificationItem) => {
     const ktmPath = item.student_detail?.ktm_url
@@ -609,10 +700,7 @@ export function AdminVerificationView() {
                     <div className="flex flex-col gap-2 text-xs text-gray-600 bg-[#F8F9FF] rounded-xl p-3.5 border border-gray-100">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-500">No. HP / WA</span>
-                        <span className="font-semibold text-[#0B1C30] flex items-center gap-1">
-                          <Phone className="w-3.5 h-3.5 text-[#FF6B00]" />
-                          {item.phone || '-'}
-                        </span>
+                        {renderCardPhoneValue(item.id)}
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-500">NIM</span>
@@ -656,10 +744,7 @@ export function AdminVerificationView() {
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-500">No. HP / WA</span>
-                        <span className="font-semibold text-[#0B1C30] flex items-center gap-1">
-                          <Phone className="w-3.5 h-3.5 text-[#FF6B00]" />
-                          {item.phone || '-'}
-                        </span>
+                        {renderCardPhoneValue(item.id)}
                       </div>
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-gray-500">Jenis Usaha</span>

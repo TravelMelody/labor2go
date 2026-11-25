@@ -17,11 +17,13 @@ import {
   ArrowRight,
   ShieldCheck,
   Star,
+  MessageCircle,
   X,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatRupiah, formatJobScheduleWIB, formatDurationHours } from '@/lib/format'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { useUnreadMessages } from '@/hooks/useUnreadMessages'
 import { ReviewDialog } from '@/components/reviews/ReviewDialog'
 
 export interface ActivityJob {
@@ -59,6 +61,7 @@ interface StudentActivityViewProps {
   initialApplications: ActivityApplication[]
   initialMyReviewsByJobId: Record<string, number>
   initialServerTime: string
+  currentUserId: string
 }
 
 function formatWibDate(dateInput: string | Date): string {
@@ -82,6 +85,7 @@ export function StudentActivityView({
   initialApplications,
   initialMyReviewsByJobId,
   initialServerTime,
+  currentUserId,
 }: StudentActivityViewProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -212,6 +216,10 @@ export function StudentActivityView({
   const completedApplications = useMemo(() => {
     return applications.filter((app) => app.payment?.status === 'released')
   }, [applications])
+
+  const { unreadByAppId } = useUnreadMessages(currentUserId, {
+    enabled: activeApplications.length > 0 || completedApplications.length > 0,
+  })
 
   // Aksi Check-in
   const handleCheckIn = async (appId: string) => {
@@ -558,7 +566,7 @@ export function StudentActivityView({
                     </div>
 
                     {/* Tombol Aksi Sesuai Kondisi */}
-                    <div>
+                    <div className="flex flex-col gap-2">
                       {!app.checked_in_at ? (
                         !isCheckInOpen ? (
                           /* Kondisi 1: Belum check-in dan sebelum (start_at - 30 menit) -> Nonaktif */
@@ -622,6 +630,19 @@ export function StudentActivityView({
                           <span>Menunggu konfirmasi merchant</span>
                         </button>
                       )}
+
+                      <Link
+                        href={`/chat/${app.id}`}
+                        className="w-full h-10 rounded-full bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FF6B00] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Chat dengan merchant</span>
+                        {(unreadByAppId[app.id] ?? 0) > 0 && (
+                          <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold leading-none">
+                            {unreadByAppId[app.id] > 99 ? '99+' : unreadByAppId[app.id]}
+                          </span>
+                        )}
+                      </Link>
                     </div>
                   </div>
                 )
@@ -754,24 +775,41 @@ export function StudentActivityView({
                     </div>
 
                     <div className="pt-2.5 mt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
-                      {myRating != null ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200/70 text-[11px] font-bold">
-                          <span>Ulasanmu: ★ {myRating}</span>
-                        </span>
-                      ) : (
-                        <>
-                          <span className="text-[11px] text-gray-500">
-                            Bagaimana pengalaman kerjamu?
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        {myRating != null ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200/70 text-[11px] font-bold">
+                            <span>Ulasanmu: ★ {myRating}</span>
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => setReviewTargetApp(app)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF6B00] hover:bg-[#E05E00] text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all shrink-0"
-                          >
-                            <Star className="w-3 h-3 fill-white" />
-                            <span>Beri Ulasan</span>
-                          </button>
-                        </>
+                        ) : (
+                          <>
+                            <span className="text-[11px] text-gray-500 truncate">
+                              Bagaimana pengalaman kerjamu?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setReviewTargetApp(app)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF6B00] hover:bg-[#E05E00] text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all shrink-0"
+                            >
+                              <Star className="w-3 h-3 fill-white" />
+                              <span>Beri Ulasan</span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+
+                      {app.status === 'accepted' && (
+                        <Link
+                          href={`/chat/${app.id}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FF6B00] text-[11px] font-bold shrink-0 active:scale-95 transition-all"
+                        >
+                          <MessageCircle className="w-3 h-3" />
+                          <span>Chat</span>
+                          {(unreadByAppId[app.id] ?? 0) > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-rose-600 text-white text-[9px] font-extrabold leading-none">
+                              {unreadByAppId[app.id] > 99 ? '99+' : unreadByAppId[app.id]}
+                            </span>
+                          )}
+                        </Link>
                       )}
                     </div>
                   </div>

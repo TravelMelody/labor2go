@@ -45,6 +45,12 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
 - Ajukan ulang verifikasi hanya lewat supabase.rpc('request_reverification'), dan hanya untuk
   verification_status = 'rejected'.
 - Konstanta konfigurasi (email bantuan, nama level) disimpan di lib/config.ts dan lib/levels.ts.
+- Pesan HANYA lewat supabase.rpc('send_message', { p_application_id, p_body }); tandai terbaca lewat
+  rpc('mark_thread_read', { p_application_id }). Jangan insert/update tabel messages dari client.
+- Nomor HP TIDAK BOLEH dibaca langsung dari tabel profiles. Pakai rpc: get_my_phone() (milik sendiri),
+  get_counterpart_contact(p_application_id) (lawan pekerjaan, hanya jika lamaran diterima),
+  admin_get_phone(p_user_id) (admin). Dilarang .select('*') pada profiles; selalu sebut kolomnya.
+  Menulis nomor tetap lewat profiles.update({ full_name, phone }) tanpa .select().
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

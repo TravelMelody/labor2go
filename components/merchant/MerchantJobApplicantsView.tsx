@@ -31,6 +31,7 @@ import {
 } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { useUnreadMessages } from '@/hooks/useUnreadMessages'
 import { ReviewDialog } from '@/components/reviews/ReviewDialog'
 import {
   REVIEW_SELECT,
@@ -44,7 +45,6 @@ import { StarRating } from '@/components/reviews/StarRating'
 export interface ApplicantStudentInfo {
   id: string
   full_name: string | null
-  phone: string | null
   verified: boolean
   university: string
   skills: string[]
@@ -70,6 +70,7 @@ export interface ApplicantItem {
   checked_out_at: string | null
   created_at: string
   student: ApplicantStudentInfo
+  counterpart_phone: string | null
   payment?: ApplicantPaymentInfo | null
   my_review_rating?: number | null
 }
@@ -91,7 +92,6 @@ export interface MerchantJobInfo {
 interface ProfileRecord {
   id: string
   full_name: string | null
-  phone: string | null
   verified: boolean
 }
 
@@ -259,27 +259,56 @@ export function MerchantJobApplicantsView({
         let studentProfilesMap: Record<string, StudentProfileRecord> = {}
         let ratingsMap: Record<string, ProfileRatingRecord> = {}
         let myReviewsMap: Record<string, number> = {}
+        const acceptedPhoneMap: Record<string, string | null> = {}
+
+        const acceptedApps = rawApps.filter((a) => a.status === 'accepted')
 
         if (studentIds.length > 0) {
-          const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes] = await Promise.all([
-            supabase
-              .from('profiles')
-              .select('id, full_name, phone, verified')
-              .in('id', studentIds),
-            supabase
-              .from('student_profiles')
-              .select('id, university, skills, level, completed_jobs')
-              .in('id', studentIds),
-            supabase
-              .from('profile_ratings')
-              .select('user_id, avg_rating, review_count')
-              .in('user_id', studentIds),
-            supabase
-              .from('reviews')
-              .select('reviewee_id, rating')
-              .eq('job_id', job.id)
-              .eq('reviewer_id', currentUserId),
-          ])
+          const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes, ...contactResults] =
+            await Promise.all([
+              supabase
+                .from('profiles')
+                .select('id, full_name, verified')
+                .in('id', studentIds),
+              supabase
+                .from('student_profiles')
+                .select('id, university, skills, level, completed_jobs')
+                .in('id', studentIds),
+              supabase
+                .from('profile_ratings')
+                .select('user_id, avg_rating, review_count')
+                .in('user_id', studentIds),
+              supabase
+                .from('reviews')
+                .select('reviewee_id, rating')
+                .eq('job_id', job.id)
+                .eq('reviewer_id', currentUserId),
+              ...acceptedApps.map((app) =>
+                supabase.rpc('get_counterpart_contact', {
+                  p_application_id: app.id,
+                })
+              ),
+            ])
+
+          acceptedApps.forEach((app, idx) => {
+            const res = contactResults[idx]
+            if (!res) return
+            if (res.error) {
+              if (res.error.code === 'P0001') {
+                console.warn('Peringatan saat refresh get_counterpart_contact:', res.error.message)
+              } else {
+                console.error('Error saat refresh get_counterpart_contact:', res.error)
+              }
+              acceptedPhoneMap[app.id] = null
+              return
+            }
+            const rawContact = res.data as
+              | { full_name?: string | null; phone?: string | null }
+              | Array<{ full_name?: string | null; phone?: string | null }>
+              | null
+            const contactRow = Array.isArray(rawContact) ? rawContact[0] ?? null : rawContact
+            acceptedPhoneMap[app.id] = contactRow?.phone || null
+          })
 
           if (profilesRes.error) {
             console.error('Error saat refresh profiles:', profilesRes.error)
@@ -338,6 +367,8 @@ export function MerchantJobApplicantsView({
             checked_out_at: app.checked_out_at || null,
             created_at: app.created_at,
             my_review_rating: myReviewsMap[app.student_id] ?? null,
+            counterpart_phone:
+              app.status === 'accepted' ? (acceptedPhoneMap[app.id] ?? null) : null,
             payment: rawPay
               ? {
                   id: rawPay.id,
@@ -349,7 +380,6 @@ export function MerchantJobApplicantsView({
             student: {
               id: app.student_id,
               full_name: prof?.full_name || 'Mahasiswa',
-              phone: prof?.phone || null,
               verified: Boolean(prof?.verified),
               university: sp?.university || 'Universitas Negeri Semarang',
               skills: Array.isArray(sp?.skills) ? sp.skills : [],
@@ -429,6 +459,10 @@ export function MerchantJobApplicantsView({
   // Filter applications
   const acceptedApplicants = applications.filter((app) => app.status === 'accepted')
   const pendingApplicants = applications.filter((app) => app.status === 'pending')
+
+  const { unreadByAppId } = useUnreadMessages(currentUserId, {
+    enabled: acceptedApplicants.length > 0,
+  })
 
   // Financial calculations
   const totalPerWorker = job.pay_amount + serviceFee
@@ -844,11 +878,12 @@ export function MerchantJobApplicantsView({
                 currentTime >= new Date(job.start_at).getTime() + 30 * 60 * 1000
 
               const waUrl = formatWhatsAppUrl(
-                app.student.phone,
+                app.counterpart_phone,
                 `Halo ${getFirstName(
                   app.student.full_name
                 )}, saya dari pemberi kerja lowongan "${job.title}" di Labor2Go. Apakah kamu sudah siap untuk jadwal ini?`
               )
+              const unreadCount = unreadByAppId[app.id] ?? 0
 
               return (
                 <div
@@ -1022,6 +1057,22 @@ export function MerchantJobApplicantsView({
                     </div>
                   )}
 
+                  {/* Tombol Chat dalam aplikasi */}
+                  <div className="mb-3">
+                    <Link
+                      href={`/chat/${app.id}`}
+                      className="relative w-full py-2.5 px-4 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-200 text-[#FF6B00] active:scale-[0.98] text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                      <span>Chat</span>
+                      {unreadCount > 0 && (
+                        <span className="ml-1 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1.5 rounded-full bg-rose-600 text-white text-[10px] font-extrabold leading-none shadow-xs">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
+                    </Link>
+                  </div>
+
                   {/* Kontak WhatsApp */}
                   <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
                     <div className="text-xs">
@@ -1029,7 +1080,7 @@ export function MerchantJobApplicantsView({
                         Nomor WhatsApp
                       </span>
                       <span className="font-bold text-gray-800">
-                        {app.student.phone || 'Nomor tidak tersedia'}
+                        {app.counterpart_phone || 'Nomor tidak tersedia'}
                       </span>
                     </div>
 

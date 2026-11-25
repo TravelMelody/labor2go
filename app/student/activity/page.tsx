@@ -192,6 +192,7 @@ async function StudentActivityContent() {
       initialApplications={initialApplications}
       initialMyReviewsByJobId={initialMyReviewsByJobId}
       initialServerTime={serverTime}
+      currentUserId={user.id}
     />
   )
 }

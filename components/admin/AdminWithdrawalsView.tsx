@@ -21,7 +21,6 @@ type WithdrawalStatus = 'pending' | 'processed' | 'rejected'
 
 interface ProfileSnippet {
   full_name: string | null
-  phone: string | null
 }
 
 interface RawWithdrawalRow {
@@ -46,7 +45,6 @@ interface WithdrawalItem {
   created_at: string
   processed_at: string | null
   student_name: string
-  student_phone: string | null
 }
 
 function pickOne<T>(val: T | T[] | null | undefined): T | null {
@@ -110,7 +108,7 @@ export function AdminWithdrawalsView() {
       const { data, error } = await supabase
         .from('withdrawals')
         .select(
-          'id, user_id, amount, destination_type, destination_account, status, created_at, processed_at, profiles(full_name, phone)'
+          'id, user_id, amount, destination_type, destination_account, status, created_at, processed_at, profiles(full_name)'
         )
         .eq('status', tab)
         .order('created_at', { ascending: tab === 'pending' })
@@ -132,7 +130,6 @@ export function AdminWithdrawalsView() {
           created_at: row.created_at,
           processed_at: row.processed_at,
           student_name: prof?.full_name?.trim() || 'Mahasiswa',
-          student_phone: prof?.phone ?? null,
         }
       })
 
@@ -444,11 +441,6 @@ export function AdminWithdrawalsView() {
                       <p className="font-bold text-[#0B1C30]">
                         {item.student_name}
                       </p>
-                      {item.student_phone && (
-                        <p className="text-[11px] text-gray-500">
-                          {item.student_phone}
-                        </p>
-                      )}
                     </td>
                     <td className="py-3.5 px-4 whitespace-nowrap font-extrabold text-[#0B1C30]">
                       {formatRupiah(item.amount)}
