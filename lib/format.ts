@@ -31,6 +31,49 @@ export function formatTimeWIB(
 }
 
 /**
+ * Format tanggal dan jam transaksi ke WIB:
+ * "Hari ini, 09:00 WIB", "Kemarin, 20:30 WIB", atau "15 Sep, 18:00 WIB".
+ */
+export function formatDateTimeWIB(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return '-'
+
+  const timeWIB = formatTimeWIB(date, { includeSuffix: true })
+  if (timeWIB === '-') return '-'
+
+  const now = new Date()
+  const toWibDateKey = (d: Date) =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(d)
+
+  const dateKey = toWibDateKey(date)
+  const todayKey = toWibDateKey(now)
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const yesterdayKey = toWibDateKey(yesterday)
+
+  let dayLabel = ''
+  if (dateKey === todayKey) {
+    dayLabel = 'Hari ini'
+  } else if (dateKey === yesterdayKey) {
+    dayLabel = 'Kemarin'
+  } else {
+    const sameYear = dateKey.slice(0, 4) === todayKey.slice(0, 4)
+    dayLabel = new Intl.DateTimeFormat('id-ID', {
+      timeZone: 'Asia/Jakarta',
+      day: 'numeric',
+      month: 'short',
+      ...(sameYear ? {} : { year: 'numeric' }),
+    }).format(date)
+  }
+
+  return `${dayLabel}, ${timeWIB}`
+}
+
+/**
  * Format rentang waktu mulai hingga selesai dalam WIB.
  * Contoh: "09:00 - 13:00 WIB"
  */

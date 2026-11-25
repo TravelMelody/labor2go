@@ -26,6 +26,11 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
   atau tabel uang dari client.
 - Error bisnis dari database (saldo kurang, slot penuh, dll., error.code 'P0001') tampilkan ke
   user dan catat dengan console.warn; console.error hanya untuk error tak terduga.
+- Uang bergerak hanya lewat fungsi database: credit_topup/fail_topup (khusus service_role, dari API route server),
+  request_withdrawal (mahasiswa, rpc), resolve_withdrawal (admin). Client tidak boleh insert/update wallets,
+  wallet_transactions, atau withdrawals.
+- SUPABASE_SERVICE_ROLE_KEY dan MIDTRANS_SERVER_KEY hanya dipakai di kode server (file dengan
+  `import 'server-only'`), tidak boleh ada di komponen client atau diawali NEXT_PUBLIC_.
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.
