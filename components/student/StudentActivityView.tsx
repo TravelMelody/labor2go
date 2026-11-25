@@ -16,11 +16,13 @@ import {
   Zap,
   ArrowRight,
   ShieldCheck,
+  Star,
   X,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatRupiah, formatJobScheduleWIB, formatDurationHours } from '@/lib/format'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { ReviewDialog } from '@/components/reviews/ReviewDialog'
 
 export interface ActivityJob {
   id: string
@@ -55,6 +57,7 @@ export interface ActivityApplication {
 
 interface StudentActivityViewProps {
   initialApplications: ActivityApplication[]
+  initialMyReviewsByJobId: Record<string, number>
   initialServerTime: string
 }
 
@@ -77,6 +80,7 @@ function formatDurationTimer(seconds: number): string {
 
 export function StudentActivityView({
   initialApplications,
+  initialMyReviewsByJobId,
   initialServerTime,
 }: StudentActivityViewProps) {
   const router = useRouter()
@@ -84,6 +88,17 @@ export function StudentActivityView({
   const [, startTransition] = useTransition()
 
   const [applications, setApplications] = useState<ActivityApplication[]>(initialApplications)
+  const [optimisticReviewsByJobId, setOptimisticReviewsByJobId] = useState<Record<string, number>>({})
+  const [reviewTargetApp, setReviewTargetApp] = useState<ActivityApplication | null>(null)
+
+  // Gabungkan data ulasan dari server dengan pembaruan optimistik lokal
+  const myReviewsByJobId = useMemo(
+    () => ({
+      ...initialMyReviewsByJobId,
+      ...optimisticReviewsByJobId,
+    }),
+    [initialMyReviewsByJobId, optimisticReviewsByJobId]
+  )
 
   // Sinkronisasi data saat Server Component selesai memuat data baru lewat router.refresh()
   useEffect(() => {
@@ -703,36 +718,61 @@ export function StudentActivityView({
                 const dateText = formatWibDate(completionDate)
                 const durationText = formatDurationHours(app.job.start_at, app.job.end_at)
                 const paidAmount = app.payment?.amount || app.job.pay_amount
+                const myRating = myReviewsByJobId[app.job_id]
 
                 return (
                   <div
                     key={app.id}
-                    className="bg-white rounded-2xl p-3.5 shadow-xs border border-gray-100 flex items-center justify-between gap-3 hover:border-gray-200 transition-colors"
+                    className="bg-white rounded-2xl p-3.5 shadow-xs border border-gray-100 flex flex-col hover:border-gray-200 transition-colors"
                   >
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
-                        <CheckCircle2 className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="text-xs font-bold text-[#0B1C30] truncate">
-                          {app.job.title}
-                        </h4>
-                        <p className="text-[11px] text-gray-500 truncate">{app.business_name}</p>
-                        <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400">
-                          <Calendar className="w-3 h-3" />
-                          <span>{dateText}</span>
-                          <span>•</span>
-                          <span>{durationText}</span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5 shadow-inner">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-[#0B1C30] truncate">
+                            {app.job.title}
+                          </h4>
+                          <p className="text-[11px] text-gray-500 truncate">{app.business_name}</p>
+                          <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400">
+                            <Calendar className="w-3 h-3" />
+                            <span>{dateText}</span>
+                            <span>•</span>
+                            <span>{durationText}</span>
+                          </div>
                         </div>
                       </div>
+                      <div className="text-right shrink-0 pl-1">
+                        <p className="text-xs font-extrabold text-emerald-700">
+                          + {formatRupiah(paidAmount)}
+                        </p>
+                        <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-1">
+                          Selesai
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right shrink-0 pl-1">
-                      <p className="text-xs font-extrabold text-emerald-700">
-                        + {formatRupiah(paidAmount)}
-                      </p>
-                      <span className="bg-emerald-50 text-emerald-700 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 mt-1">
-                        Selesai
-                      </span>
+
+                    <div className="pt-2.5 mt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                      {myRating != null ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200/70 text-[11px] font-bold">
+                          <span>Ulasanmu: ★ {myRating}</span>
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-[11px] text-gray-500">
+                            Bagaimana pengalaman kerjamu?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setReviewTargetApp(app)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#FF6B00] hover:bg-[#E05E00] text-white text-[11px] font-bold shadow-xs active:scale-95 transition-all shrink-0"
+                          >
+                            <Star className="w-3 h-3 fill-white" />
+                            <span>Beri Ulasan</span>
+                          </button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )
@@ -798,6 +838,30 @@ export function StudentActivityView({
           </div>
         </div>
       )}
+
+      {/* Bottom Sheet: Beri Ulasan Merchant */}
+      <ReviewDialog
+        open={Boolean(reviewTargetApp)}
+        onClose={() => setReviewTargetApp(null)}
+        applicationId={reviewTargetApp?.id ?? ''}
+        targetName={reviewTargetApp?.business_name ?? 'Merchant'}
+        subtitle={reviewTargetApp?.job.title}
+        onSuccess={({ rating }) => {
+          if (reviewTargetApp) {
+            setOptimisticReviewsByJobId((prev) => ({
+              ...prev,
+              [reviewTargetApp.job_id]: rating,
+            }))
+          }
+          setToast({
+            message: 'Ulasan berhasil dikirim! Terima kasih atas penilaianmu.',
+            type: 'success',
+          })
+          startTransition(() => {
+            router.refresh()
+          })
+        }}
+      />
     </div>
   )
 }

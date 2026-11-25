@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -39,6 +39,15 @@ import {
   isUrgentJob,
 } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
+import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { StarRating } from '@/components/reviews/StarRating'
+import {
+  REVIEW_SELECT,
+  ReviewList,
+  normalizeReviewRows,
+  type RawReviewRow,
+  type ReviewItem,
+} from '@/components/reviews/ReviewList'
 
 export interface JobDetailData {
   id: string
@@ -83,12 +92,14 @@ interface JobDetailViewProps {
   job: JobDetailData
   currentUser: CurrentUserData
   initialApplication: ApplicationData | null
+  initialReviews: ReviewItem[]
 }
 
 export function JobDetailView({
   job,
   currentUser,
   initialApplication,
+  initialReviews,
 }: JobDetailViewProps) {
   const router = useRouter()
   const supabase = createClient()
@@ -96,10 +107,87 @@ export function JobDetailView({
   const [application, setApplication] = useState<ApplicationData | null>(
     initialApplication
   )
+  const [avgRating, setAvgRating] = useState<number | null>(job.avg_rating)
+  const [reviewCount, setReviewCount] = useState<number>(job.review_count)
+  const [reviews, setReviews] = useState<ReviewItem[]>(initialReviews)
+  const [showingAllReviews, setShowingAllReviews] = useState<boolean>(false)
+  const [loadingAllReviews, setLoadingAllReviews] = useState<boolean>(false)
+  const [reviewsError, setReviewsError] = useState<string | null>(null)
+  const showingAllReviewsRef = useRef<boolean>(false)
+
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success')
   const [showChatTooltip, setShowChatTooltip] = useState(false)
+
+  const refreshReviewsAndRating = useCallback(async () => {
+    try {
+      const limit = showingAllReviewsRef.current ? 20 : 3
+      const [ratingRes, reviewsRes] = await Promise.all([
+        supabase
+          .from('profile_ratings')
+          .select('avg_rating, review_count')
+          .eq('user_id', job.umkm_id)
+          .maybeSingle(),
+        supabase
+          .from('reviews')
+          .select(REVIEW_SELECT)
+          .eq('reviewee_id', job.umkm_id)
+          .order('created_at', { ascending: false })
+          .limit(limit),
+      ])
+
+      if (!ratingRes.error && ratingRes.data) {
+        setAvgRating(
+          ratingRes.data.avg_rating != null ? Number(ratingRes.data.avg_rating) : null
+        )
+        setReviewCount(Number(ratingRes.data.review_count ?? 0))
+      } else if (!ratingRes.error && !ratingRes.data) {
+        setAvgRating(null)
+        setReviewCount(0)
+      }
+
+      if (!reviewsRes.error && reviewsRes.data) {
+        setReviews(normalizeReviewRows(reviewsRes.data as RawReviewRow[]))
+      }
+    } catch (err) {
+      console.error('Gagal memperbarui ulasan merchant:', err)
+    }
+  }, [supabase, job.umkm_id])
+
+  useAutoRefresh(() => {
+    void refreshReviewsAndRating()
+  }, 20000)
+
+  const handleLoadAllReviews = async () => {
+    if (loadingAllReviews || showingAllReviews) return
+    setLoadingAllReviews(true)
+    setReviewsError(null)
+
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(REVIEW_SELECT)
+        .eq('reviewee_id', job.umkm_id)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (error) {
+        console.error('Error saat memuat semua ulasan merchant:', error)
+        setReviewsError('Gagal memuat semua ulasan.')
+        return
+      }
+
+      setReviews(normalizeReviewRows(data as RawReviewRow[] | null))
+      setShowingAllReviews(true)
+      showingAllReviewsRef.current = true
+    } catch (err) {
+      console.error('Exception saat memuat semua ulasan merchant:', err)
+      setReviewsError('Terjadi kesalahan saat memuat semua ulasan.')
+    } finally {
+      setLoadingAllReviews(false)
+    }
+  }
 
   // Auto-dismiss toast
   useEffect(() => {
@@ -234,7 +322,7 @@ export function JobDetailView({
   // Perhitungan Data Halaman (utamakan nilai server untuk mencegah hydration mismatch)
   const shiftBadgeText = job.shiftBadge ?? getShiftBadge(job.start_at)
   const isUrgent = job.isUrgent ?? (nowMs !== null ? isUrgentJob(job.start_at, nowMs) : false)
-  const hasReviews = job.review_count > 0 && job.avg_rating != null
+  const hasReviews = reviewCount > 0 && avgRating != null
   const distanceText = getDistanceFromCampus(job.lat, job.lng, CAMPUS)
 
   // Estimasi Jalan Kaki (80 meter / menit)
@@ -430,10 +518,10 @@ export function JobDetailView({
                 <div className="flex items-center gap-1 bg-orange-50 px-1.5 py-0.5 rounded-full text-[#FF6B00]">
                   <Star className="w-3 h-3 fill-[#FF6B00]" />
                   <span className="text-[11px] font-bold">
-                    {Number(job.avg_rating).toFixed(1)}
+                    {Number(avgRating).toFixed(1)}
                   </span>
                   <span className="text-[10px] text-gray-500">
-                    ({job.review_count} ulasan)
+                    ({reviewCount} ulasan)
                   </span>
                 </div>
               ) : (
@@ -552,9 +640,9 @@ export function JobDetailView({
                         <>
                           <Star className="w-3 h-3 fill-amber-400 text-amber-400 shrink-0" />
                           <span className="font-semibold text-gray-700">
-                            {Number(job.avg_rating).toFixed(1)}
+                            {Number(avgRating).toFixed(1)}
                           </span>
-                          <span>({job.review_count} ulasan)</span>
+                          <span>({reviewCount} ulasan)</span>
                         </>
                       ) : (
                         <span className="text-emerald-700 font-semibold">
@@ -587,6 +675,52 @@ export function JobDetailView({
               </div>
             </div>
           </div>
+
+          {/* Bagian Ulasan tentang Merchant */}
+          <section className="bg-white rounded-2xl shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] border border-gray-100 p-4 flex flex-col gap-3">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h2 className="text-sm font-bold text-[#0B1C30]">
+                  Ulasan tentang {job.business_name}
+                </h2>
+                <div className="flex items-center gap-1.5 mt-1">
+                  {hasReviews ? (
+                    <>
+                      <StarRating value={Number(avgRating)} size="sm" showValue />
+                      <span className="text-[11px] text-gray-500">
+                        ({reviewCount} ulasan)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="bg-emerald-50 text-emerald-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-100">
+                      Baru
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <ReviewList reviews={reviews} emptyMessage="Belum ada ulasan" />
+
+            {reviewsError && (
+              <div className="p-2.5 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                <span>{reviewsError}</span>
+              </div>
+            )}
+
+            {!showingAllReviews && reviewCount > 3 && (
+              <button
+                type="button"
+                onClick={handleLoadAllReviews}
+                disabled={loadingAllReviews}
+                className="w-full h-10 rounded-full bg-[#F8F9FF] hover:bg-orange-50 border border-gray-200 text-[#0B1C30] hover:text-[#FF6B00] text-xs font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-60"
+              >
+                {loadingAllReviews && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>{loadingAllReviews ? 'Memuat ulasan...' : 'Lihat semua'}</span>
+              </button>
+            )}
+          </section>
 
           {/* Bagian Lokasi & Rute Singkat */}
           <div className="flex flex-col gap-2">

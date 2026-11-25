@@ -196,9 +196,10 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
   let profilesMap: Record<string, ProfileRecord> = {}
   let studentProfilesMap: Record<string, StudentProfileRecord> = {}
   let ratingsMap: Record<string, ProfileRatingRecord> = {}
+  let myReviewsMap: Record<string, number> = {}
 
   if (studentIds.length > 0) {
-    const [profilesRes, studentProfilesRes, ratingsRes] = await Promise.all([
+    const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes] = await Promise.all([
       supabase
         .from('profiles')
         .select('id, full_name, phone, verified')
@@ -211,6 +212,11 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
         .from('profile_ratings')
         .select('user_id, avg_rating, review_count')
         .in('user_id', studentIds),
+      supabase
+        .from('reviews')
+        .select('reviewee_id, rating')
+        .eq('job_id', id)
+        .eq('reviewer_id', user.id),
     ])
 
     if (profilesRes.error) {
@@ -239,6 +245,18 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
         return acc
       }, {} as Record<string, ProfileRatingRecord>)
     }
+
+    if (myReviewsRes.error) {
+      console.error('Error saat membaca ulasan merchant di server:', myReviewsRes.error)
+    } else if (myReviewsRes.data) {
+      myReviewsMap = (myReviewsRes.data as Array<{ reviewee_id: string; rating: number }>).reduce(
+        (acc, curr) => {
+          acc[curr.reviewee_id] = Number(curr.rating)
+          return acc
+        },
+        {} as Record<string, number>
+      )
+    }
   }
 
   const initialApplications: ApplicantItem[] = rawApps.map((app) => {
@@ -257,6 +275,7 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
       checked_in_at: app.checked_in_at || null,
       checked_out_at: app.checked_out_at || null,
       created_at: app.created_at,
+      my_review_rating: myReviewsMap[app.student_id] ?? null,
       payment: rawPay
         ? {
             id: rawPay.id,

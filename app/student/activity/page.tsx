@@ -159,11 +159,38 @@ async function StudentActivityContent() {
     })
     .filter((a): a is ActivityApplication => a !== null)
 
+  // 5. Satu query batch untuk cek ulasan yang sudah diberikan mahasiswa pada tugas selesai
+  const releasedJobIds = Array.from(
+    new Set(
+      initialApplications
+        .filter((a) => a.payment?.status === 'released')
+        .map((a) => a.job_id)
+    )
+  )
+
+  const initialMyReviewsByJobId: Record<string, number> = {}
+  if (releasedJobIds.length > 0) {
+    const { data: myReviews, error: reviewsError } = await supabase
+      .from('reviews')
+      .select('job_id, rating')
+      .eq('reviewer_id', user.id)
+      .in('job_id', releasedJobIds)
+
+    if (reviewsError) {
+      console.error('Error fetching student reviews:', reviewsError)
+    } else if (myReviews) {
+      myReviews.forEach((r) => {
+        initialMyReviewsByJobId[r.job_id] = Number(r.rating)
+      })
+    }
+  }
+
   const serverTime = new Date().toISOString()
 
   return (
     <StudentActivityView
       initialApplications={initialApplications}
+      initialMyReviewsByJobId={initialMyReviewsByJobId}
       initialServerTime={serverTime}
     />
   )

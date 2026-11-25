@@ -31,6 +31,10 @@ Next.js App Router + TypeScript, Tailwind CSS, Supabase (@supabase/ssr), lucide-
   wallet_transactions, atau withdrawals.
 - SUPABASE_SERVICE_ROLE_KEY dan MIDTRANS_SERVER_KEY hanya dipakai di kode server (file dengan
   `import 'server-only'`), tidak boleh ada di komponen client atau diawali NEXT_PUBLIC_.
+- Ulasan HANYA lewat supabase.rpc('submit_review', { p_application_id, p_rating, p_comment }).
+  Jangan insert ke tabel reviews dari client. Tabel reviews boleh dibaca (select).
+  Saat embed profiles dari reviews, pakai hint FK karena ada dua relasi ke profiles
+  (profiles!reviews_reviewer_id_fkey / profiles!reviews_reviewee_id_fkey).
 
 ## Database (sudah ada di Supabase, RLS aktif)
 profiles, umkm_profiles, student_profiles, jobs, applications, payments, reviews, messages, wallets, wallet_transactions, withdrawals, job_templates, view profile_ratings.

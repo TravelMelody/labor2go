@@ -9,6 +9,24 @@ import {
   type CurrentUserData,
   type ApplicationData,
 } from '@/components/jobs/JobDetailView'
+import type { ReviewItem } from '@/components/reviews/ReviewList'
+
+interface ServerReviewRow {
+  id: string
+  rating: number
+  comment: string | null
+  created_at: string
+  profiles?:
+    | { full_name: string | null }
+    | Array<{ full_name: string | null }>
+    | null
+}
+
+function extractReviewerFirstName(fullName: string | null | undefined): string {
+  if (!fullName || !fullName.trim()) return 'Pengguna'
+  const first = fullName.trim().split(/\s+/)[0]
+  return first.charAt(0).toUpperCase() + first.slice(1)
+}
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -134,8 +152,8 @@ async function JobDetailContent({ params }: PageProps) {
   // (b) Perbandingan job.umkm_id === user.id (string)
   const isOwner = umkmId.trim().toLowerCase() === userId.trim().toLowerCase()
 
-  // 5. Info merchant: umkm_profiles, profiles.full_name, dan view profile_ratings
-  const [ownerRes, umkmRes, ratingRes, acceptedAppsRes] = await Promise.all([
+  // 5. Info merchant: umkm_profiles, profiles.full_name, view profile_ratings, dan 3 ulasan terbaru
+  const [ownerRes, umkmRes, ratingRes, acceptedAppsRes, reviewsRes] = await Promise.all([
     supabase
       .from('profiles')
       .select('full_name')
@@ -158,11 +176,18 @@ async function JobDetailContent({ params }: PageProps) {
           .eq('job_id', id)
           .eq('status', 'accepted')
       : Promise.resolve({ count: 0, error: null }),
+    supabase
+      .from('reviews')
+      .select('id, rating, comment, created_at, profiles!reviews_reviewer_id_fkey(full_name)')
+      .eq('reviewee_id', umkmId)
+      .order('created_at', { ascending: false })
+      .limit(3),
   ])
 
   if (ownerRes.error) console.error('Error fetching merchant owner profile:', ownerRes.error)
   if (umkmRes.error) console.error('Error fetching umkm profile:', umkmRes.error)
   if (ratingRes.error) console.error('Error fetching profile ratings:', ratingRes.error)
+  if (reviewsRes.error) console.error('Error fetching merchant reviews:', reviewsRes.error)
 
   const slotsLeft = feedData
     ? feedData.slots_left
@@ -171,6 +196,32 @@ async function JobDetailContent({ params }: PageProps) {
   // Hitung badge shift & urgensi di server setelah connection() untuk mencegah hydration mismatch
   const shiftBadge = getShiftBadge(baseJob.start_at)
   const isUrgent = isUrgentJob(baseJob.start_at)
+
+  const avgRating =
+    ratingRes.data?.avg_rating != null
+      ? Number(ratingRes.data.avg_rating)
+      : feedData?.avg_rating != null
+      ? Number(feedData.avg_rating)
+      : null
+  const reviewCount =
+    ratingRes.data?.review_count != null
+      ? Number(ratingRes.data.review_count)
+      : Number(feedData?.review_count ?? 0)
+
+  const initialReviews: ReviewItem[] = (
+    (reviewsRes.data ?? []) as ServerReviewRow[]
+  ).map((row) => {
+    const profObj = Array.isArray(row.profiles)
+      ? row.profiles[0] || null
+      : row.profiles || null
+    return {
+      id: row.id,
+      rating: Number(row.rating),
+      comment: row.comment?.trim() ? row.comment.trim() : null,
+      created_at: row.created_at,
+      reviewer_first_name: extractReviewerFirstName(profObj?.full_name),
+    }
+  })
 
   const jobDetail: JobDetailData = {
     id: baseJob.id,
@@ -200,8 +251,8 @@ async function JobDetailContent({ params }: PageProps) {
       null,
     owner_name: ownerRes.data?.full_name || 'Pemilik Usaha',
     merchant_address: umkmRes.data?.address || null,
-    avg_rating: feedData ? feedData.avg_rating : ratingRes.data?.avg_rating || null,
-    review_count: feedData ? feedData.review_count : ratingRes.data?.review_count || 0,
+    avg_rating: avgRating,
+    review_count: reviewCount,
     isAvailable,
     shiftBadge,
     isUrgent,
@@ -235,6 +286,7 @@ async function JobDetailContent({ params }: PageProps) {
       job={jobDetail}
       currentUser={currentUser}
       initialApplication={initialApplication}
+      initialReviews={initialReviews}
     />
   )
 }

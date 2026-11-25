@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -31,6 +31,15 @@ import {
 } from '@/lib/format'
 import { useNow } from '@/hooks/useNow'
 import { useAutoRefresh } from '@/hooks/useAutoRefresh'
+import { ReviewDialog } from '@/components/reviews/ReviewDialog'
+import {
+  REVIEW_SELECT,
+  ReviewList,
+  normalizeReviewRows,
+  type RawReviewRow,
+  type ReviewItem,
+} from '@/components/reviews/ReviewList'
+import { StarRating } from '@/components/reviews/StarRating'
 
 export interface ApplicantStudentInfo {
   id: string
@@ -62,6 +71,7 @@ export interface ApplicantItem {
   created_at: string
   student: ApplicantStudentInfo
   payment?: ApplicantPaymentInfo | null
+  my_review_rating?: number | null
 }
 
 export interface MerchantJobInfo {
@@ -149,6 +159,13 @@ export function MerchantJobApplicantsView({
   const [selectedAppForCompletion, setSelectedAppForCompletion] = useState<ApplicantItem | null>(null)
   const [selectedAppForNoShow, setSelectedAppForNoShow] = useState<ApplicantItem | null>(null)
   const [showCancelJobModal, setShowCancelJobModal] = useState<boolean>(false)
+  const [selectedAppForReview, setSelectedAppForReview] = useState<ApplicantItem | null>(null)
+  const [selectedStudentForReviews, setSelectedStudentForReviews] =
+    useState<ApplicantStudentInfo | null>(null)
+  const [studentReviews, setStudentReviews] = useState<ReviewItem[]>([])
+  const [loadingStudentReviews, setLoadingStudentReviews] = useState<boolean>(false)
+  const [studentReviewsError, setStudentReviewsError] = useState<string | null>(null)
+  const studentReviewsReqIdRef = useRef<number>(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -241,9 +258,10 @@ export function MerchantJobApplicantsView({
         let profilesMap: Record<string, ProfileRecord> = {}
         let studentProfilesMap: Record<string, StudentProfileRecord> = {}
         let ratingsMap: Record<string, ProfileRatingRecord> = {}
+        let myReviewsMap: Record<string, number> = {}
 
         if (studentIds.length > 0) {
-          const [profilesRes, studentProfilesRes, ratingsRes] = await Promise.all([
+          const [profilesRes, studentProfilesRes, ratingsRes, myReviewsRes] = await Promise.all([
             supabase
               .from('profiles')
               .select('id, full_name, phone, verified')
@@ -256,6 +274,11 @@ export function MerchantJobApplicantsView({
               .from('profile_ratings')
               .select('user_id, avg_rating, review_count')
               .in('user_id', studentIds),
+            supabase
+              .from('reviews')
+              .select('reviewee_id, rating')
+              .eq('job_id', job.id)
+              .eq('reviewer_id', currentUserId),
           ])
 
           if (profilesRes.error) {
@@ -284,6 +307,18 @@ export function MerchantJobApplicantsView({
               return acc
             }, {} as Record<string, ProfileRatingRecord>)
           }
+
+          if (myReviewsRes.error) {
+            console.error('Error saat refresh ulasan merchant:', myReviewsRes.error)
+          } else if (myReviewsRes.data) {
+            myReviewsMap = (myReviewsRes.data as Array<{ reviewee_id: string; rating: number }>).reduce(
+              (acc, curr) => {
+                acc[curr.reviewee_id] = Number(curr.rating)
+                return acc
+              },
+              {} as Record<string, number>
+            )
+          }
         }
 
         const mappedApps: ApplicantItem[] = rawApps.map((app) => {
@@ -302,6 +337,7 @@ export function MerchantJobApplicantsView({
             checked_in_at: app.checked_in_at || null,
             checked_out_at: app.checked_out_at || null,
             created_at: app.created_at,
+            my_review_rating: myReviewsMap[app.student_id] ?? null,
             payment: rawPay
               ? {
                   id: rawPay.id,
@@ -338,6 +374,57 @@ export function MerchantJobApplicantsView({
   useAutoRefresh(() => {
     refreshData(true)
   }, 20000)
+
+  // Tutup sheet ulasan pelamar dengan tombol Escape
+  useEffect(() => {
+    if (!selectedStudentForReviews) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        studentReviewsReqIdRef.current += 1
+        setSelectedStudentForReviews(null)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [selectedStudentForReviews])
+
+  // Buka sheet 3 ulasan terbaru untuk pelamar
+  const handleOpenStudentReviews = async (student: ApplicantStudentInfo) => {
+    const reqId = studentReviewsReqIdRef.current + 1
+    studentReviewsReqIdRef.current = reqId
+
+    setSelectedStudentForReviews(student)
+    setStudentReviews([])
+    setStudentReviewsError(null)
+    setLoadingStudentReviews(true)
+
+    try {
+      const { data, error } = await supabase
+        .from('reviews')
+        .select(REVIEW_SELECT)
+        .eq('reviewee_id', student.id)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      if (studentReviewsReqIdRef.current !== reqId) return
+
+      if (error) {
+        console.error('Error saat memuat ulasan mahasiswa:', error)
+        setStudentReviewsError('Gagal memuat ulasan mahasiswa.')
+        return
+      }
+
+      setStudentReviews(normalizeReviewRows(data as RawReviewRow[] | null))
+    } catch (err) {
+      if (studentReviewsReqIdRef.current !== reqId) return
+      console.error('Exception saat memuat ulasan mahasiswa:', err)
+      setStudentReviewsError('Terjadi kesalahan saat memuat ulasan mahasiswa.')
+    } finally {
+      if (studentReviewsReqIdRef.current === reqId) {
+        setLoadingStudentReviews(false)
+      }
+    }
+  }
 
   // Filter applications
   const acceptedApplicants = applications.filter((app) => app.status === 'accepted')
@@ -826,7 +913,9 @@ export function MerchantJobApplicantsView({
                     <div className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                       <span className="font-bold text-gray-800">
-                        {app.student.avg_rating ? app.student.avg_rating.toFixed(1) : 'Baru'}
+                        {app.student.review_count > 0 && app.student.avg_rating != null
+                          ? app.student.avg_rating.toFixed(1)
+                          : 'Baru'}
                       </span>
                       <span className="text-gray-400">({app.student.completed_jobs} tugas)</span>
                     </div>
@@ -874,6 +963,26 @@ export function MerchantJobApplicantsView({
                         <span className="font-medium">Kehadiran:</span>
                       </div>
                       <span className="font-bold text-amber-600">Belum hadir</span>
+                    </div>
+                  )}
+
+                  {/* Tombol / Status Ulasan Pekerja (untuk status Selesai - Dibayar) */}
+                  {isPaid && (
+                    <div className="mb-3 flex items-center justify-between gap-2">
+                      {app.my_review_rating != null ? (
+                        <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200/70 text-xs font-bold">
+                          <span>Ulasanmu: ★ {app.my_review_rating}</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAppForReview(app)}
+                          className="w-full py-2.5 px-4 rounded-xl bg-[#FF6B00] hover:bg-[#e66000] active:scale-[0.98] text-white text-xs font-bold transition-all shadow-sm shadow-orange-500/20 flex items-center justify-center gap-1.5"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-white" />
+                          <span>Beri Ulasan</span>
+                        </button>
+                      )}
                     </div>
                   )}
 
@@ -1014,17 +1123,28 @@ export function MerchantJobApplicantsView({
                 </div>
 
                 {/* Rating & Pekerjaan Selesai */}
-                <div className="flex items-center gap-3 text-xs text-gray-600 mb-3 pt-1">
-                  <div className="flex items-center gap-1 font-semibold text-gray-800">
-                    <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                    <span>
-                      {app.student.avg_rating ? app.student.avg_rating.toFixed(1) : 'Baru'}
+                <div className="flex items-center justify-between gap-2 text-xs text-gray-600 mb-3 pt-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                    <div className="flex items-center gap-1 font-semibold text-gray-800">
+                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                      <span>
+                        {app.student.review_count > 0 && app.student.avg_rating != null
+                          ? app.student.avg_rating.toFixed(1)
+                          : 'Baru'}
+                      </span>
+                    </div>
+                    <span className="text-gray-300">•</span>
+                    <span className="text-gray-500">
+                      {app.student.completed_jobs} pekerjaan selesai
                     </span>
                   </div>
-                  <span className="text-gray-300">•</span>
-                  <span className="text-gray-500">
-                    {app.student.completed_jobs} pekerjaan selesai
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenStudentReviews(app.student)}
+                    className="text-xs font-bold text-[#FF6B00] hover:underline shrink-0"
+                  >
+                    Lihat ulasan
+                  </button>
                 </div>
 
                 {/* Skills (Chips) */}
@@ -1581,6 +1701,102 @@ export function MerchantJobApplicantsView({
                 )}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 6: Beri Ulasan Mahasiswa */}
+      <ReviewDialog
+        open={Boolean(selectedAppForReview)}
+        onClose={() => setSelectedAppForReview(null)}
+        applicationId={selectedAppForReview?.id ?? ''}
+        targetName={selectedAppForReview?.student.full_name || 'Mahasiswa'}
+        subtitle={job.title}
+        onSuccess={async ({ rating }) => {
+          if (selectedAppForReview) {
+            setApplications((prev) =>
+              prev.map((a) =>
+                a.id === selectedAppForReview.id ? { ...a, my_review_rating: rating } : a
+              )
+            )
+          }
+          showToast('Ulasan berhasil dikirim!', 'success')
+          await refreshData(true)
+          router.refresh()
+        }}
+      />
+
+      {/* SHEET: 3 Ulasan Terbaru Pelamar */}
+      {selectedStudentForReviews && (
+        <div
+          className="fixed inset-0 z-[60] bg-[#0B1C30]/50 backdrop-blur-[2px] flex items-end justify-center"
+          onClick={() => {
+            studentReviewsReqIdRef.current += 1
+            setSelectedStudentForReviews(null)
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-reviews-sheet-title"
+            className="w-full max-w-[420px] bg-white rounded-t-3xl p-5 pb-8 shadow-2xl border-t border-gray-100 max-h-[85vh] overflow-y-auto animate-in slide-in-from-bottom-5 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4" />
+
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="min-w-0">
+                <h2
+                  id="student-reviews-sheet-title"
+                  className="text-base font-extrabold text-[#0B1C30] truncate"
+                >
+                  Ulasan tentang {selectedStudentForReviews.full_name || 'Mahasiswa'}
+                </h2>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedStudentForReviews.review_count > 0 &&
+                  selectedStudentForReviews.avg_rating != null ? (
+                    <>
+                      <StarRating
+                        value={Number(selectedStudentForReviews.avg_rating)}
+                        size="sm"
+                        showValue
+                      />
+                      <span className="text-xs text-gray-500">
+                        ({selectedStudentForReviews.review_count} ulasan)
+                      </span>
+                    </>
+                  ) : (
+                    <span className="bg-emerald-50 text-emerald-700 font-bold text-[10px] px-2 py-0.5 rounded-full border border-emerald-100">
+                      Baru
+                    </span>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  studentReviewsReqIdRef.current += 1
+                  setSelectedStudentForReviews(null)
+                }}
+                aria-label="Tutup daftar ulasan"
+                className="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {studentReviewsError ? (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span className="font-medium">{studentReviewsError}</span>
+              </div>
+            ) : (
+              <ReviewList
+                reviews={studentReviews}
+                loading={loadingStudentReviews}
+                emptyMessage="Belum ada ulasan"
+              />
+            )}
           </div>
         </div>
       )}
