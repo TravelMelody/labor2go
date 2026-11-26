@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useRef, useState, ChangeEvent, DragEvent } from 'react'
+import React, { useMemo, useRef, useState, ChangeEvent, DragEvent } from 'react'
 import Image from 'next/image'
-import { UploadCloud, Image as ImageIcon, X, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { UploadCloud, AlertCircle, CheckCircle2 } from 'lucide-react'
 
 interface ImageUploadFieldProps {
   label: string
@@ -30,22 +30,18 @@ export function ImageUploadField({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [dragActive, setDragActive] = useState(false)
   const [internalError, setInternalError] = useState<string | null>(null)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
 
-  // Update object URL for preview when file changes
-  React.useEffect(() => {
-    if (!file) {
-      setPreviewUrl(null)
-      return
-    }
-
-    const objectUrl = URL.createObjectURL(file)
-    setPreviewUrl(objectUrl)
-
-    return () => {
-      URL.revokeObjectURL(objectUrl)
-    }
+  const previewUrl = useMemo(() => {
+    if (!file) return null
+    return URL.createObjectURL(file)
   }, [file])
+
+  React.useEffect(() => {
+    if (!previewUrl) return
+    return () => {
+      URL.revokeObjectURL(previewUrl)
+    }
+  }, [previewUrl])
 
   const validateAndSelectFile = (selectedFile: File) => {
     setInternalError(null)

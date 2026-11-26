@@ -5,14 +5,12 @@ import { useRouter } from 'next/navigation'
 import {
   Store,
   User,
-  Phone,
   MapPin,
   Navigation,
   Loader2,
   AlertCircle,
   CheckCircle,
   ArrowRight,
-  Layers,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ImageUploadField } from './ImageUploadField'
@@ -28,7 +26,6 @@ const BUSINESS_TYPES = ['F&B', 'Retail', 'Event', 'Jasa', 'Lainnya'] as const
 type BusinessType = (typeof BUSINESS_TYPES)[number]
 
 export function MerchantOnboardingForm({
-  userId,
   initialFullName = '',
   initialPhone = '',
   onSuccess,
@@ -49,7 +46,6 @@ export function MerchantOnboardingForm({
   // Geolocation UI states
   const [geoLoading, setGeoLoading] = useState(false)
   const [geoError, setGeoError] = useState<string | null>(null)
-  const [geoSuccess, setGeoSuccess] = useState(false)
 
   // Validation & UI states
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -64,14 +60,12 @@ export function MerchantOnboardingForm({
 
     setGeoLoading(true)
     setGeoError(null)
-    setGeoSuccess(false)
 
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setLat(position.coords.latitude)
         setLng(position.coords.longitude)
         setGeoLoading(false)
-        setGeoSuccess(true)
       },
       (error) => {
         setGeoLoading(false)
@@ -136,6 +130,7 @@ export function MerchantOnboardingForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting) return
     setServerError(null)
 
     if (!validate()) {
@@ -401,13 +396,13 @@ export function MerchantOnboardingForm({
 
         {/* Tombol Gunakan Lokasi Saya (navigator.geolocation) */}
         <div className="pt-1">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-bold text-[#0B1C30] flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-[#FF6B00]" />
-              Koordinat Lokasi (Opsional)
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <span className="text-xs font-bold text-[#0B1C30] flex items-center gap-1.5 min-w-0">
+              <MapPin className="w-3.5 h-3.5 text-[#FF6B00] shrink-0" />
+              <span className="truncate">Koordinat Lokasi (Opsional)</span>
             </span>
             {lat !== null && lng !== null && (
-              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-md shrink-0">
                 Terdeteksi
               </span>
             )}
@@ -446,7 +441,6 @@ export function MerchantOnboardingForm({
                 onClick={() => {
                   setLat(null)
                   setLng(null)
-                  setGeoSuccess(false)
                 }}
                 className="text-xs text-red-500 hover:underline shrink-0 ml-2"
               >

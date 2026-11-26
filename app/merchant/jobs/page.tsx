@@ -19,7 +19,6 @@ import {
   X,
   Check,
   ChevronRight,
-  ArrowRight,
   User,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -43,6 +42,27 @@ interface ApplicationItem {
     id?: string
     full_name?: string | null
   } | null
+}
+
+interface RawApplicationRow {
+  id: string
+  status: 'pending' | 'accepted' | 'rejected' | 'withdrawn'
+  student_id: string
+  payments?: PaymentItem[] | PaymentItem | null
+}
+
+interface RawJobRow {
+  id: string
+  title: string
+  description: string | null
+  location_name: string | null
+  start_at: string
+  end_at: string
+  pay_amount: number
+  slots: number
+  status: 'open' | 'filled' | 'in_progress' | 'completed' | 'cancelled'
+  created_at: string
+  applications?: RawApplicationRow[] | null
 }
 
 interface JobItem {
@@ -156,11 +176,12 @@ export default function MerchantJobsManagePage() {
       if (jobsError) {
         console.error('Error saat membaca jobs merchant:', jobsError)
       } else if (jobsData) {
+        const rawJobs = jobsData as RawJobRow[]
         // Kumpulkan student_id dari lamaran berstatus accepted untuk mengambil nama mahasiswa
         const studentIds = new Set<string>()
-        jobsData.forEach((j: any) => {
+        rawJobs.forEach((j) => {
           if (Array.isArray(j.applications)) {
-            j.applications.forEach((a: ApplicationItem) => {
+            j.applications.forEach((a) => {
               if (a.status === 'accepted' && a.student_id) {
                 studentIds.add(a.student_id)
               }
@@ -187,9 +208,9 @@ export default function MerchantJobsManagePage() {
         }
 
         // Pasangkan data student ke applications
-        const mappedJobs: JobItem[] = jobsData.map((j: any) => {
+        const mappedJobs: JobItem[] = rawJobs.map((j) => {
           const apps: ApplicationItem[] = (j.applications || []).map(
-            (app: any) => ({
+            (app) => ({
               id: app.id,
               status: app.status,
               student_id: app.student_id,
@@ -226,7 +247,10 @@ export default function MerchantJobsManagePage() {
   }, [router, supabase])
 
   useEffect(() => {
-    loadData(false)
+    const timer = setTimeout(() => {
+      void loadData(false)
+    }, 0)
+    return () => clearTimeout(timer)
   }, [loadData])
 
   // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa indikator loading berkedip
@@ -236,7 +260,7 @@ export default function MerchantJobsManagePage() {
 
   // Handle pembatalan lowongan via RPC cancel_job
   const handleConfirmCancelJob = async () => {
-    if (!selectedJobForCancel) return
+    if (!selectedJobForCancel || isSubmittingCancel) return
     setIsSubmittingCancel(true)
     setCancelActionError(null)
 
@@ -285,9 +309,19 @@ export default function MerchantJobsManagePage() {
 
   if (loading) {
     return (
-      <div className="flex-1 min-h-[80vh] flex flex-col items-center justify-center p-6 text-slate-500">
-        <Loader2 className="w-7 h-7 animate-spin text-[#FF6B00] mb-2" />
-        <p className="text-xs font-medium">Memuat lowongan Anda...</p>
+      <div className="flex-1 flex flex-col w-full pb-24 bg-[#F8F9FF] animate-pulse">
+        <div className="h-14 px-4 bg-white border-b border-gray-100 flex items-center justify-between">
+          <div className="w-32 h-5 rounded bg-gray-200" />
+          <div className="w-24 h-5 rounded bg-gray-200" />
+        </div>
+        <div className="bg-white px-4 py-2.5 border-b border-gray-100 mb-3">
+          <div className="h-10 rounded-full bg-gray-100" />
+        </div>
+        <div className="px-4 flex flex-col gap-3.5">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-44 rounded-2xl bg-white border border-gray-100" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -611,7 +645,7 @@ export default function MerchantJobsManagePage() {
 
                 {/* Card Footer: Alokasi Dana & Tombol Aksi */}
                 <div
-                  className={`pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2 ${
+                  className={`pt-2.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 ${
                     job.status === 'in_progress' ? 'pl-1.5' : ''
                   }`}
                 >

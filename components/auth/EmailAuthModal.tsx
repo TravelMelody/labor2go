@@ -21,7 +21,17 @@ export function EmailAuthModal({
   const supabase = createClient()
 
   const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [role, setRole] = useState<UserRole>(initialRole)
+  const [roleOverride, setRoleOverride] = useState<{
+    base: UserRole
+    selected: UserRole
+  } | null>(null)
+  const role =
+    roleOverride && roleOverride.base === initialRole
+      ? roleOverride.selected
+      : initialRole
+  const setRole = (next: UserRole) =>
+    setRoleOverride({ base: initialRole, selected: next })
+
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -30,15 +40,11 @@ export function EmailAuthModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
-  // Sync role when initialRole changes
-  React.useEffect(() => {
-    setRole(initialRole)
-  }, [initialRole])
-
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (loading) return
     setErrorMsg(null)
     setSuccessMsg(null)
 
@@ -173,7 +179,7 @@ export function EmailAuthModal({
         </button>
 
         {/* Role Pill Switcher */}
-        <div className="flex items-center gap-2 mb-4 pr-10">
+        <div className="flex flex-wrap items-center gap-2 mb-4 pr-10">
           <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
             Peran:
           </span>
@@ -327,7 +333,10 @@ export function EmailAuthModal({
             }`}
           >
             {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                <span>Memproses...</span>
+              </>
             ) : mode === 'signin' ? (
               `Masuk Sebagai ${isStudent ? 'Mahasiswa' : 'Merchant'}`
             ) : (

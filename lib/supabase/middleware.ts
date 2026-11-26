@@ -44,6 +44,7 @@ export async function updateSession(request: NextRequest) {
   const isStudentRoute = pathname.startsWith('/student')
   const isMerchantRoute = pathname.startsWith('/merchant')
   const isChatRoute = pathname.startsWith('/chat')
+  const isJobsRoute = pathname.startsWith('/jobs')
   const isOnboardingRoute = pathname.startsWith('/onboarding')
   const isAdminRoute = pathname.startsWith('/admin')
   const isAuthRoute = pathname === '/login'
@@ -79,6 +80,7 @@ export async function updateSession(request: NextRequest) {
       isStudentRoute ||
       isMerchantRoute ||
       isChatRoute ||
+      isJobsRoute ||
       isOnboardingRoute ||
       isAuthRoute ||
       pathname === '/'

@@ -397,7 +397,7 @@ export default function MerchantDashboardPage() {
   }, 20000)
 
   const handleConfirmDeleteTemplate = async () => {
-    if (!templateToDelete || !userId) return
+    if (!templateToDelete || !userId || deletingTemplate) return
     setDeletingTemplate(true)
     setDeleteTemplateError(null)
 
@@ -430,8 +430,40 @@ export default function MerchantDashboardPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F8F9FF]">
-        <Loader2 className="w-6 h-6 animate-spin text-[#FF6B00]" />
+      <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col bg-[#F8F9FF] pb-28 animate-pulse">
+        <div className="h-16 px-4 bg-white border-b border-slate-100 flex items-center justify-between">
+          <div className="w-32 h-7 rounded bg-gray-200" />
+          <div className="w-9 h-9 rounded-full bg-gray-200" />
+        </div>
+        <div className="px-4 pt-4 flex flex-col gap-5">
+          <div className="flex flex-col gap-2">
+            <div className="w-40 h-7 rounded-lg bg-gray-200" />
+            <div className="w-52 h-4 rounded bg-gray-200" />
+          </div>
+          <div className="bg-white rounded-2xl p-4 border border-slate-100 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="w-32 h-10 rounded-xl bg-gray-200" />
+              <div className="w-24 h-9 rounded-full bg-gray-200" />
+            </div>
+            <div className="w-full h-5 rounded bg-gray-100" />
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <div className="w-44 h-5 rounded bg-gray-200" />
+            <div className="h-28 rounded-2xl bg-white border border-slate-100" />
+          </div>
+          <div className="flex flex-col gap-2.5">
+            <div className="w-36 h-5 rounded bg-gray-200" />
+            <div className="flex gap-3 overflow-hidden">
+              <div className="w-48 h-36 shrink-0 rounded-2xl bg-white border border-slate-100" />
+              <div className="w-48 h-36 shrink-0 rounded-2xl bg-white border border-slate-100" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="h-20 rounded-2xl bg-white border border-slate-100" />
+            <div className="h-20 rounded-2xl bg-white border border-slate-100" />
+            <div className="col-span-2 h-20 rounded-2xl bg-white border border-slate-100" />
+          </div>
+        </div>
       </div>
     )
   }
@@ -638,7 +670,7 @@ export default function MerchantDashboardPage() {
 
                   {/* Kondisi Open */}
                   {latestActiveJob.status === 'open' && (
-                    <div className="bg-[#EFF4FF]/70 border border-blue-100 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div className="bg-[#EFF4FF]/70 border border-blue-100 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200 text-[11px] font-bold shrink-0">
                           <Radio className="w-3 h-3 animate-pulse" />
@@ -700,9 +732,9 @@ export default function MerchantDashboardPage() {
                             return (
                               <div
                                 key={app.id}
-                                className="flex items-center justify-between gap-2 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs border border-emerald-100"
+                                className="flex flex-wrap items-center justify-between gap-1.5 bg-white/90 rounded-lg px-2.5 py-1.5 text-xs border border-emerald-100"
                               >
-                                <span className="font-bold text-[#0B1C30] truncate">
+                                <span className="font-bold text-[#0B1C30] truncate min-w-0">
                                   {app.studentName || 'Mahasiswa'}
                                 </span>
                                 <span
@@ -751,7 +783,7 @@ export default function MerchantDashboardPage() {
               untuk membuat pintasan di sini.
             </div>
           ) : (
-            <div className="flex items-stretch gap-3 overflow-x-auto pb-1.5 pt-0.5 -mx-4 px-4">
+            <div className="flex items-stretch gap-3 overflow-x-auto pb-1.5 pt-0.5 -mx-4 px-4 no-scrollbar">
               {templates.map((tpl) => (
                 <div
                   key={tpl.id}

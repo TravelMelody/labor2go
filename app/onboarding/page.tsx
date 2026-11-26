@@ -13,6 +13,7 @@ export default function OnboardingPage() {
   const supabase = createClient()
 
   const [loading, setLoading] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
   const [userRole, setUserRole] = useState<'student' | 'umkm'>('student')
   const [fullName, setFullName] = useState('')
@@ -101,16 +102,35 @@ export default function OnboardingPage() {
   }, [supabase, router])
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      router.push('/login')
+      router.refresh()
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   if (loading || !userId) {
     return (
-      <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col items-center justify-center bg-[#F8F9FF]">
-        <Loader2 className="w-8 h-8 animate-spin text-[#FF6B00] mb-2" />
-        <p className="text-xs text-gray-500 font-medium">Memuat formulir pendaftaran...</p>
+      <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col px-4 pt-5 pb-8 bg-[#F8F9FF] gap-4 animate-pulse">
+        <div className="flex items-center justify-between">
+          <div className="w-28 h-8 rounded-lg bg-gray-200" />
+          <div className="w-20 h-8 rounded-full bg-gray-200" />
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="w-28 h-6 rounded-full bg-gray-200" />
+            <div className="w-24 h-6 rounded-full bg-gray-200" />
+          </div>
+          <div className="w-3/4 h-6 rounded-lg bg-gray-200" />
+          <div className="w-full h-10 rounded-lg bg-gray-100" />
+        </div>
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 h-44" />
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 h-52" />
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 h-36" />
       </div>
     )
   }
@@ -131,17 +151,22 @@ export default function OnboardingPage() {
         />
         <button
           onClick={handleLogout}
+          disabled={loggingOut}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold text-gray-600 bg-white border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
         >
-          <LogOut className="w-3.5 h-3.5 text-gray-500" />
-          <span>Keluar</span>
+          {loggingOut ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-500" />
+          ) : (
+            <LogOut className="w-3.5 h-3.5 text-gray-500" />
+          )}
+          <span>{loggingOut ? 'Keluar...' : 'Keluar'}</span>
         </button>
       </header>
 
       {/* Hero / Step Card */}
       <section className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-gray-100 mb-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#FFEDE0] text-[#FF6B00] text-xs font-bold">
             <Sparkles className="w-3.5 h-3.5" />
             <span>Langkah Terakhir</span>

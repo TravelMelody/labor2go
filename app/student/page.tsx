@@ -50,6 +50,7 @@ export default function StudentHomePage() {
   const [jobs, setJobs] = useState<JobFeedItem[]>([])
   const [applicationsMap, setApplicationsMap] = useState<Record<string, ApplicationStatus>>({})
   const [loading, setLoading] = useState(true)
+  const [loggingOut, setLoggingOut] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const fetchHomeData = useCallback(async (silent = false) => {
@@ -136,7 +137,10 @@ export default function StudentHomePage() {
   }, [supabase, router])
 
   useEffect(() => {
-    fetchHomeData(false)
+    const timer = setTimeout(() => {
+      void fetchHomeData(false)
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchHomeData])
 
   // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa kedipan skeleton
@@ -145,9 +149,15 @@ export default function StudentHomePage() {
   }, 20000)
 
   const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/login')
-    router.refresh()
+    if (loggingOut) return
+    setLoggingOut(true)
+    try {
+      await supabase.auth.signOut()
+      router.push('/login')
+      router.refresh()
+    } finally {
+      setLoggingOut(false)
+    }
   }
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -195,9 +205,10 @@ export default function StudentHomePage() {
           <button
             type="button"
             onClick={handleLogout}
+            disabled={loggingOut}
             title="Keluar"
             aria-label="Keluar akun"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 active:scale-95 transition-colors"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 active:scale-95 transition-colors disabled:opacity-50"
           >
             <LogOut className="w-4.5 h-4.5" />
           </button>
@@ -306,14 +317,14 @@ export default function StudentHomePage() {
               </form>
 
               {/* Saldo Dompet Row */}
-              <div className="bg-[#EFF4FF]/80 rounded-2xl p-3 flex items-center justify-between border border-blue-50">
-                <div className="flex items-center gap-2.5">
+              <div className="bg-[#EFF4FF]/80 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-2 border border-blue-50">
+                <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-9 h-9 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center shrink-0">
                     <Wallet className="w-4.5 h-4.5" />
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col min-w-0">
                     <span className="text-[11px] text-gray-500 font-medium">Saldo Dompet</span>
-                    <span className="text-base font-extrabold text-[#0B1C30]">
+                    <span className="text-base font-extrabold text-[#0B1C30] truncate">
                       {formatRupiah(student?.walletBalance)}
                     </span>
                   </div>
@@ -324,9 +335,9 @@ export default function StudentHomePage() {
                   type="button"
                   disabled
                   title="Fitur Tarik Tunai Segera Hadir"
-                  className="bg-gray-200 text-gray-500 px-3 py-1.5 rounded-full text-xs font-bold cursor-not-allowed flex items-center gap-1.5 transition-colors"
+                  className="bg-gray-200 text-gray-500 px-2.5 py-1.5 rounded-full text-[11px] font-bold cursor-not-allowed flex items-center gap-1 transition-colors shrink-0 whitespace-nowrap"
                 >
-                  <Banknote className="w-3.5 h-3.5" />
+                  <Banknote className="w-3.5 h-3.5 shrink-0" />
                   <span>Tarik Tunai</span>
                   <span className="text-[9px] bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full font-medium">
                     Segera
@@ -348,49 +359,49 @@ export default function StudentHomePage() {
                 </Link>
               </div>
 
-              <div className="grid grid-cols-4 gap-2.5">
+              <div className="grid grid-cols-4 gap-2 sm:gap-2.5">
                 {/* 1. F&B */}
                 <Link
                   href="/student/explore?kategori=F%26B"
-                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-orange-200 active:scale-95 transition-all group"
+                  className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-orange-200 active:scale-95 transition-all group min-w-0"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-[#FFEBD8] flex items-center justify-center text-[#FF6B00] group-hover:scale-105 transition-transform shadow-inner">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#FFEBD8] flex items-center justify-center text-[#FF6B00] group-hover:scale-105 transition-transform shadow-inner">
                     <Utensils className="w-5 h-5 stroke-[2.2]" />
                   </div>
-                  <span className="text-xs font-bold text-[#0B1C30]">F&amp;B</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-[#0B1C30] truncate max-w-full">F&amp;B</span>
                 </Link>
 
                 {/* 2. Kasir */}
                 <Link
                   href="/student/explore?kategori=Kasir"
-                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-blue-200 active:scale-95 transition-all group"
+                  className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-blue-200 active:scale-95 transition-all group min-w-0"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-[#DDF4FF] flex items-center justify-center text-[#36558F] group-hover:scale-105 transition-transform shadow-inner">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#DDF4FF] flex items-center justify-center text-[#36558F] group-hover:scale-105 transition-transform shadow-inner">
                     <Receipt className="w-5 h-5 stroke-[2.2]" />
                   </div>
-                  <span className="text-xs font-bold text-[#0B1C30]">Kasir</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-[#0B1C30] truncate max-w-full">Kasir</span>
                 </Link>
 
                 {/* 3. Packing */}
                 <Link
                   href="/student/explore?kategori=Packing"
-                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-emerald-200 active:scale-95 transition-all group"
+                  className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-emerald-200 active:scale-95 transition-all group min-w-0"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-[#DCFCE7] flex items-center justify-center text-[#006C49] group-hover:scale-105 transition-transform shadow-inner">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#DCFCE7] flex items-center justify-center text-[#006C49] group-hover:scale-105 transition-transform shadow-inner">
                     <Package className="w-5 h-5 stroke-[2.2]" />
                   </div>
-                  <span className="text-xs font-bold text-[#0B1C30]">Packing</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-[#0B1C30] truncate max-w-full">Packing</span>
                 </Link>
 
                 {/* 4. Event */}
                 <Link
                   href="/student/explore?kategori=Event"
-                  className="flex flex-col items-center gap-1.5 p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-purple-200 active:scale-95 transition-all group"
+                  className="flex flex-col items-center gap-1.5 p-2 sm:p-2.5 bg-white rounded-2xl shadow-xs border border-gray-100 hover:border-purple-200 active:scale-95 transition-all group min-w-0"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-[#F3E8FF] flex items-center justify-center text-[#7E22CE] group-hover:scale-105 transition-transform shadow-inner">
+                  <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-[#F3E8FF] flex items-center justify-center text-[#7E22CE] group-hover:scale-105 transition-transform shadow-inner">
                     <Sparkles className="w-5 h-5 stroke-[2.2]" />
                   </div>
-                  <span className="text-xs font-bold text-[#0B1C30]">Event</span>
+                  <span className="text-[11px] sm:text-xs font-bold text-[#0B1C30] truncate max-w-full">Event</span>
                 </Link>
               </div>
             </section>
@@ -398,8 +409,8 @@ export default function StudentHomePage() {
             {/* SECTION: Pekerjaan Tersedia Sekarang (5 Lowongan Terbaru) */}
             <section className="flex flex-col gap-3">
               {/* Header Bagian dengan tautan "Lihat Semua" */}
-              <div className="flex items-center justify-between px-1">
-                <div className="flex flex-col">
+              <div className="flex items-center justify-between gap-2 px-1">
+                <div className="flex flex-col min-w-0">
                   <h2 className="text-base font-bold text-[#0B1C30] tracking-tight">
                     Pekerjaan Tersedia Sekarang
                   </h2>

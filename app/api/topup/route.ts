@@ -7,6 +7,7 @@ import { getMidtransAuthHeader, SNAP_URL } from '@/lib/midtrans'
 
 const MIN_TOPUP_AMOUNT = 10_000
 const MAX_TOPUP_AMOUNT = 5_000_000
+const MAX_PENDING_TOPUPS_PER_HOUR = 5
 
 export async function POST(request: Request) {
   try {
@@ -74,10 +75,37 @@ export async function POST(request: Request) {
       )
     }
 
+    const admin = createAdminClient()
+
+    const oneHourAgoIso = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const { count: pendingTopupCount, error: pendingCountError } = await admin
+      .from('wallet_transactions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('type', 'topup')
+      .eq('status', 'pending')
+      .gte('created_at', oneHourAgoIso)
+
+    if (pendingCountError) {
+      console.error('Gagal memeriksa jumlah top-up pending user:', pendingCountError)
+      return NextResponse.json(
+        { error: 'Gagal memeriksa riwayat isi saldo' },
+        { status: 500 }
+      )
+    }
+
+    if ((pendingTopupCount ?? 0) >= MAX_PENDING_TOPUPS_PER_HOUR) {
+      return NextResponse.json(
+        {
+          error:
+            'Terlalu banyak transaksi isi saldo yang masih menunggu (maksimal 5 dalam 1 jam). Selesaikan atau cek status transaksi sebelumnya terlebih dahulu.',
+        },
+        { status: 429 }
+      )
+    }
+
     const randomCode = crypto.randomBytes(3).toString('hex').toUpperCase()
     const orderId = `L2G-${Date.now()}-${randomCode}`
-
-    const admin = createAdminClient()
 
     const { error: insertError } = await admin
       .from('wallet_transactions')

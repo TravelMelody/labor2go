@@ -109,6 +109,10 @@ async function JobDetailContent({ params }: PageProps) {
     fullName: profile?.full_name || user.user_metadata?.full_name || null,
   }
 
+  if (currentUser.role === 'admin') {
+    redirect('/admin')
+  }
+
   // 3. Sumber utama: VIEW jobs_feed (id = param)
   const { data: feedData, error: feedError } = await supabase
     .from('jobs_feed')

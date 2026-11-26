@@ -76,12 +76,12 @@ export function RoleCard({
       </div>
 
       {/* Title & Radio */}
-      <div className="flex items-center justify-between mb-1.5">
-        <h2 className="text-base sm:text-lg font-bold text-[#0B1C30]">
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <h2 className="text-base sm:text-lg font-bold text-[#0B1C30] min-w-0">
           {isStudent ? 'Saya Mahasiswa' : 'Saya Pemilik Usaha / UMKM'}
         </h2>
         <div
-          className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all ${
+          className={`w-5 h-5 rounded-full flex items-center justify-center border transition-all shrink-0 ${
             isSelected
               ? isStudent
                 ? 'border-[#FF6B00] bg-[#FF6B00]'

@@ -4,12 +4,9 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   User,
-  Phone,
   GraduationCap,
-  Hash,
   Loader2,
   AlertCircle,
-  CheckCircle,
   ArrowRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -24,7 +21,6 @@ interface StudentOnboardingFormProps {
 }
 
 export function StudentOnboardingForm({
-  userId,
   initialFullName = '',
   initialPhone = '',
   onSuccess,
@@ -91,6 +87,7 @@ export function StudentOnboardingForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (submitting) return
     setServerError(null)
 
     if (!validate()) {
@@ -277,11 +274,11 @@ export function StudentOnboardingForm({
 
         {/* NIM (Wajib, hanya angka) */}
         <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <label className="text-xs font-bold text-[#0B1C30]">
               Nomor Induk Mahasiswa (NIM) <span className="text-[#FF6B00]">*</span>
             </label>
-            <span className="text-[10px] text-gray-500 font-medium">Hanya angka</span>
+            <span className="text-[10px] text-gray-500 font-medium shrink-0">Hanya angka</span>
           </div>
           <input
             type="text"

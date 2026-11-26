@@ -2,7 +2,7 @@ import React from 'react'
 import { StudentBottomNav } from '@/components/student/StudentBottomNav'
 
 export const metadata = {
-  title: 'Labor2Go – Mahasiswa',
+  title: 'Beranda Mahasiswa – Labor2Go',
   description: 'Area Mahasiswa Labor2Go - Kerja Mikro Fleksibel Sekitar Kampus',
 }
 

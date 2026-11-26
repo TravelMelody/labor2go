@@ -366,7 +366,7 @@ export function StudentWalletView({
             )}
           </div>
 
-          <h2 className="text-3xl font-extrabold text-[#0B1C30] tracking-tight">
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1C30] tracking-tight break-words">
             {formatRupiah(balance)}
           </h2>
 

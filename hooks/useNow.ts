@@ -13,13 +13,18 @@ export function useNow(intervalMs: number = 30000): number | null {
   const [now, setNow] = useState<number | null>(null)
 
   useEffect(() => {
-    setNow(Date.now())
+    const initId = setTimeout(() => {
+      setNow(Date.now())
+    }, 0)
 
     const intervalId = setInterval(() => {
       setNow(Date.now())
     }, intervalMs)
 
-    return () => clearInterval(intervalId)
+    return () => {
+      clearTimeout(initId)
+      clearInterval(intervalId)
+    }
   }, [intervalMs])
 
   return now

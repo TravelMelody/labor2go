@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useTransition } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -91,7 +91,22 @@ export function StudentActivityView({
   const supabase = createClient()
   const [, startTransition] = useTransition()
 
-  const [applications, setApplications] = useState<ActivityApplication[]>(initialApplications)
+  const [optimisticAppOverrides, setOptimisticAppOverrides] = useState<{
+    base: ActivityApplication[]
+    byId: Record<string, Partial<ActivityApplication>>
+  }>({ base: initialApplications, byId: {} })
+
+  const applications = useMemo(() => {
+    const overrides =
+      optimisticAppOverrides.base === initialApplications
+        ? optimisticAppOverrides.byId
+        : {}
+    if (Object.keys(overrides).length === 0) return initialApplications
+    return initialApplications.map((app) =>
+      overrides[app.id] ? { ...app, ...overrides[app.id] } : app
+    )
+  }, [initialApplications, optimisticAppOverrides])
+
   const [optimisticReviewsByJobId, setOptimisticReviewsByJobId] = useState<Record<string, number>>({})
   const [reviewTargetApp, setReviewTargetApp] = useState<ActivityApplication | null>(null)
 
@@ -104,10 +119,21 @@ export function StudentActivityView({
     [initialMyReviewsByJobId, optimisticReviewsByJobId]
   )
 
-  // Sinkronisasi data saat Server Component selesai memuat data baru lewat router.refresh()
-  useEffect(() => {
-    setApplications(initialApplications)
-  }, [initialApplications])
+  const applyOptimisticAppUpdate = (
+    appId: string,
+    patch: Partial<ActivityApplication>
+  ) => {
+    setOptimisticAppOverrides((prev) => {
+      const currentById = prev.base === initialApplications ? prev.byId : {}
+      return {
+        base: initialApplications,
+        byId: {
+          ...currentById,
+          [appId]: { ...(currentById[appId] ?? {}), ...patch },
+        },
+      }
+    })
+  }
 
   // Auto-refresh silent lewat router.refresh() yang dibungkus startTransition agar tidak memicu fallback skeleton
   useAutoRefresh(() => {
@@ -115,12 +141,13 @@ export function StudentActivityView({
       router.refresh()
     })
   }, 20000)
-  const serverSkewRef = React.useRef<number>(0)
+  const serverSkewRef = useRef<number>(0)
   const [currentNow, setCurrentNow] = useState<number>(() => {
     const sTime = new Date(initialServerTime).getTime()
     return isNaN(sTime) ? 0 : sTime
   })
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const processingRef = useRef<boolean>(false)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null)
   const [cancelModalApp, setCancelModalApp] = useState<ActivityApplication | null>(null)
 
@@ -223,6 +250,8 @@ export function StudentActivityView({
 
   // Aksi Check-in
   const handleCheckIn = async (appId: string) => {
+    if (processingRef.current || processingId !== null) return
+    processingRef.current = true
     try {
       setProcessingId(appId)
       const { error } = await supabase.rpc('check_in', {
@@ -242,9 +271,7 @@ export function StudentActivityView({
       setToast({ message: 'Berhasil check-in! Selamat bekerja.', type: 'success' })
       // Update state lokal optimistik
       const nowIso = new Date(currentNow).toISOString()
-      setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, checked_in_at: nowIso } : a))
-      )
+      applyOptimisticAppUpdate(appId, { checked_in_at: nowIso })
       startTransition(() => {
         router.refresh()
       })
@@ -253,12 +280,15 @@ export function StudentActivityView({
       console.error('Check-in exception:', err)
       setToast({ message: msg, type: 'error' })
     } finally {
+      processingRef.current = false
       setProcessingId(null)
     }
   }
 
   // Aksi Check-out
   const handleCheckOut = async (appId: string) => {
+    if (processingRef.current || processingId !== null) return
+    processingRef.current = true
     try {
       setProcessingId(appId)
       const { error } = await supabase.rpc('check_out', {
@@ -281,9 +311,7 @@ export function StudentActivityView({
       })
       // Update state lokal optimistik
       const nowIso = new Date(currentNow).toISOString()
-      setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, checked_out_at: nowIso } : a))
-      )
+      applyOptimisticAppUpdate(appId, { checked_out_at: nowIso })
       startTransition(() => {
         router.refresh()
       })
@@ -292,14 +320,16 @@ export function StudentActivityView({
       console.error('Check-out exception:', err)
       setToast({ message: msg, type: 'error' })
     } finally {
+      processingRef.current = false
       setProcessingId(null)
     }
   }
 
   // Aksi Batalkan Lamaran (pending -> withdrawn)
   const handleConfirmWithdraw = async () => {
-    if (!cancelModalApp) return
+    if (!cancelModalApp || processingRef.current || processingId !== null) return
     const appId = cancelModalApp.id
+    processingRef.current = true
     try {
       setProcessingId(appId)
       const { error } = await supabase
@@ -318,9 +348,7 @@ export function StudentActivityView({
       }
 
       setToast({ message: 'Lamaran berhasil dibatalkan', type: 'info' })
-      setApplications((prev) =>
-        prev.map((a) => (a.id === appId ? { ...a, status: 'withdrawn' } : a))
-      )
+      applyOptimisticAppUpdate(appId, { status: 'withdrawn' })
       setCancelModalApp(null)
       startTransition(() => {
         router.refresh()
@@ -330,6 +358,7 @@ export function StudentActivityView({
       console.error('Withdraw exception:', err)
       setToast({ message: msg, type: 'error' })
     } finally {
+      processingRef.current = false
       setProcessingId(null)
     }
   }
@@ -366,25 +395,25 @@ export function StudentActivityView({
       )}
 
       {/* Sticky Top Header */}
-      <header className="sticky top-0 z-40 w-full bg-[#F8F9FF]/95 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
+      <header className="sticky top-0 z-40 w-full bg-[#F8F9FF]/95 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5 min-w-0">
           <Link
             href="/student"
             aria-label="Kembali ke Beranda"
-            className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-all shadow-xs"
+            className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-700 hover:bg-gray-50 active:scale-95 transition-all shadow-xs shrink-0"
           >
             <ArrowLeft className="w-4.5 h-4.5" />
           </Link>
-          <div>
-            <h1 className="text-base font-extrabold text-[#0B1C30] tracking-tight">
-              Tugas Aktif & Riwayat
+          <div className="min-w-0">
+            <h1 className="text-base font-extrabold text-[#0B1C30] tracking-tight truncate">
+              Tugas Aktif &amp; Riwayat
             </h1>
-            <p className="text-[11px] text-gray-500">Pantau shift dan penerimaan upah</p>
+            <p className="text-[11px] text-gray-500 truncate">Pantau shift dan penerimaan upah</p>
           </div>
         </div>
         <Link
           href="/student/explore"
-          className="text-xs font-bold text-[#FF6B00] hover:text-[#e05e00] flex items-center gap-0.5"
+          className="text-xs font-bold text-[#FF6B00] hover:text-[#e05e00] flex items-center gap-0.5 shrink-0"
         >
           <span>Eksplor</span>
           <ArrowRight className="w-3 h-3" />
@@ -395,15 +424,15 @@ export function StudentActivityView({
       <main className="flex-1 w-full px-4 pt-4 pb-12 flex flex-col gap-5">
         {/* Ringkasan Bento Banner: Performa Minggu Ini (Data Nyata) */}
         <section className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] border border-gray-100 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 min-w-0">
             <div className="w-11 h-11 rounded-2xl bg-orange-50 text-[#FF6B00] flex items-center justify-center shrink-0 shadow-inner">
               <Zap className="w-5 h-5 fill-[#FF6B00]" />
             </div>
-            <div>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider truncate">
                 Performa Minggu Ini
               </p>
-              <h2 className="text-sm font-extrabold text-[#0B1C30]">
+              <h2 className="text-sm font-extrabold text-[#0B1C30] truncate">
                 {completedThisWeekCount} Tugas Selesai
               </h2>
             </div>
@@ -479,7 +508,7 @@ export function StudentActivityView({
                     )}
 
                     {/* Header Kartu: Status Indikator + Timer */}
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
                       <div className="flex items-center gap-1.5">
                         {isWorking ? (
                           <span className="relative flex h-2.5 w-2.5">
@@ -583,7 +612,7 @@ export function StudentActivityView({
                           <button
                             type="button"
                             onClick={() => handleCheckIn(app.id)}
-                            disabled={isProcessing}
+                            disabled={processingId !== null}
                             className="w-full h-11 rounded-full bg-[#FF6B00] hover:bg-[#e05e00] text-white font-bold text-xs shadow-md shadow-orange-500/20 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                           >
                             {isProcessing ? (
@@ -604,7 +633,7 @@ export function StudentActivityView({
                         <button
                           type="button"
                           onClick={() => handleCheckOut(app.id)}
-                          disabled={isProcessing}
+                          disabled={processingId !== null}
                           className="w-full h-11 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all flex items-center justify-center gap-1.5 disabled:opacity-60 disabled:cursor-not-allowed"
                         >
                           {isProcessing ? (
@@ -693,8 +722,8 @@ export function StudentActivityView({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1 border-t border-gray-50">
-                    <div className="flex items-center gap-1.5">
+                  <div className="flex items-center justify-between gap-2 text-[11px] text-gray-500 pt-1 border-t border-gray-50">
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <Clock className="w-3 h-3 text-gray-400 shrink-0" />
                       <span className="truncate">
                         {formatJobScheduleWIB(app.job.start_at, app.job.end_at)}
@@ -703,7 +732,7 @@ export function StudentActivityView({
                     <button
                       type="button"
                       onClick={() => setCancelModalApp(app)}
-                      disabled={processingId === app.id}
+                      disabled={processingId !== null}
                       className="text-red-600 hover:text-red-700 font-bold underline active:opacity-75 disabled:opacity-50 shrink-0"
                     >
                       Batalkan lamaran
@@ -774,7 +803,7 @@ export function StudentActivityView({
                       </div>
                     </div>
 
-                    <div className="pt-2.5 mt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <div className="pt-2.5 mt-2.5 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2 min-w-0 flex-1">
                         {myRating != null ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-50 text-[#FF6B00] border border-orange-200/70 text-[11px] font-bold">
@@ -863,11 +892,14 @@ export function StudentActivityView({
               <button
                 type="button"
                 onClick={handleConfirmWithdraw}
-                disabled={processingId === cancelModalApp.id}
+                disabled={processingId !== null}
                 className="flex-1 h-10 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-md shadow-red-600/20 active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
               >
                 {processingId === cancelModalApp.id ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Membatalkan...</span>
+                  </>
                 ) : (
                   <span>Ya, Batalkan</span>
                 )}

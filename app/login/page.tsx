@@ -27,6 +27,7 @@ function LoginContent() {
   }
 
   const handleGoogleLogin = async () => {
+    if (googleLoading) return
     try {
       setGoogleLoading(true)
       setOauthError(null)

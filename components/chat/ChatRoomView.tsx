@@ -573,7 +573,7 @@ export function ChatRoomView({
                           : 'bg-white text-[#0B1C30] border border-gray-100 rounded-bl-sm shadow-xs'
                       } ${msg._optimistic ? 'opacity-80' : ''}`}
                     >
-                      <p className="whitespace-pre-wrap break-words">{msg.body}</p>
+                      <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{msg.body}</p>
 
                       <div
                         className={`mt-1 flex items-center gap-1.5 text-[10px] ${
@@ -625,12 +625,12 @@ export function ChatRoomView({
 
         {/* 4. Input / Status Percakapan Ditutup */}
         {isClosed ? (
-          <footer className="shrink-0 bg-white border-t border-gray-200/80 px-4 py-3.5 flex items-center justify-center gap-2 text-xs font-bold text-gray-500">
+          <footer className="shrink-0 bg-white border-t border-gray-200/80 px-4 py-3.5 pb-safe flex items-center justify-center gap-2 text-xs font-bold text-gray-500">
             <Lock className="w-4 h-4 text-gray-400 shrink-0" />
             <span>Percakapan ditutup</span>
           </footer>
         ) : (
-          <footer className="shrink-0 bg-white border-t border-gray-200/80 px-3.5 py-2.5">
+          <footer className="shrink-0 bg-white border-t border-gray-200/80 px-3.5 py-2.5 pb-safe">
             {draft.length > COUNTER_THRESHOLD && (
               <div className="flex justify-end mb-1 pr-1">
                 <span
@@ -653,7 +653,7 @@ export function ChatRoomView({
                 rows={1}
                 placeholder="Tulis pesan..."
                 aria-label="Tulis pesan"
-                className="flex-1 resize-none rounded-2xl bg-[#F8F9FF] border border-gray-200 px-3.5 py-2.5 text-xs text-[#0B1C30] placeholder:text-gray-400 focus:outline-none focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/15 max-h-32 leading-relaxed"
+                className="flex-1 min-w-0 resize-none rounded-2xl bg-[#F8F9FF] border border-gray-200 px-3.5 py-2.5 text-xs text-[#0B1C30] placeholder:text-gray-400 focus:outline-none focus:border-[#FF6B00] focus:ring-2 focus:ring-[#FF6B00]/15 max-h-32 leading-relaxed"
               />
               <button
                 type="button"

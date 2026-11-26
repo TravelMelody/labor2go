@@ -2,7 +2,7 @@ import React, { Suspense } from 'react'
 import { MerchantBottomNav } from '@/components/merchant/MerchantBottomNav'
 
 export const metadata = {
-  title: 'Labor2Go – Mitra UMKM',
+  title: 'Beranda Mitra UMKM – Labor2Go',
   description: 'Area Mitra UMKM Labor2Go - Pasang Lowongan & Kelola Pekerja Mikro',
 }
 

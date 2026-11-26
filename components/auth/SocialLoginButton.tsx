@@ -24,10 +24,10 @@ export function SocialLoginButton({
         type="button"
         onClick={onClick}
         disabled={disabled || loading}
-        className="w-full h-12 rounded-full bg-[#EFF4FF] hover:bg-[#E0ECFF] active:scale-[0.98] text-[#0B1C30] font-semibold text-xs sm:text-sm flex items-center justify-center gap-3 transition-all border border-[#D8E4FF] disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full h-12 px-3.5 rounded-full bg-[#EFF4FF] hover:bg-[#E0ECFF] active:scale-[0.98] text-[#0B1C30] font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 transition-all border border-[#D8E4FF] disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? (
-          <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00]" />
+          <Loader2 className="w-5 h-5 animate-spin text-[#FF6B00] shrink-0" />
         ) : (
           <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
             <path
@@ -48,7 +48,7 @@ export function SocialLoginButton({
             />
           </svg>
         )}
-        <span>{label || 'Lanjutkan dengan Akun Google'}</span>
+        <span className="truncate">{label || 'Lanjutkan dengan Akun Google'}</span>
       </button>
     )
   }
@@ -59,13 +59,13 @@ export function SocialLoginButton({
       type="button"
       onClick={onClick}
       disabled={true}
-      className="relative w-full h-12 rounded-full bg-[#128C7E] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2.5 opacity-60 cursor-not-allowed transition-all"
+      className="relative w-full h-12 px-3 rounded-full bg-[#128C7E] text-white font-semibold text-xs sm:text-sm flex items-center justify-center gap-2 opacity-60 cursor-not-allowed transition-all"
     >
       <svg className="w-5 h-5 fill-current shrink-0" viewBox="0 0 24 24">
         <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.62C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.04 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.15 12.04 20.15C10.56 20.15 9.11 19.76 7.85 19L7.55 18.83L4.43 19.65L5.26 16.61L5.07 16.3C4.24 14.98 3.8 13.47 3.8 11.91C3.81 7.37 7.5 3.67 12.04 3.67M9.53 7.34C9.36 7.34 9.09 7.4 8.87 7.65C8.64 7.89 8 8.49 8 9.72C8 10.95 8.89 12.14 9.02 12.31C9.14 12.47 10.77 14.98 13.25 16.06C13.84 16.32 14.3 16.47 14.66 16.59C15.25 16.77 15.79 16.75 16.22 16.68C16.7 16.61 17.69 16.08 17.89 15.51C18.1 14.94 18.1 14.45 18.04 14.35C17.98 14.24 17.82 14.18 17.58 14.06C17.33 13.94 16.12 13.34 15.89 13.26C15.66 13.17 15.5 13.13 15.34 13.37C15.17 13.62 14.7 14.18 14.56 14.35C14.41 14.51 14.27 14.53 14.03 14.41C13.78 14.29 12.99 14.03 12.05 13.19C11.32 12.54 10.83 11.74 10.69 11.49C10.54 11.25 10.67 11.11 10.8 10.99C10.91 10.88 11.05 10.7 11.17 10.56C11.29 10.42 11.34 10.31 11.42 10.15C11.5 9.99 11.46 9.84 11.4 9.72C11.34 9.6 10.87 8.45 10.67 7.97C10.48 7.51 10.28 7.57 10.13 7.56C10 7.56 9.83 7.34 9.53 7.34Z" />
       </svg>
-      <span>{label || 'Masuk dengan Nomor WhatsApp'}</span>
-      <span className="ml-1 px-2 py-0.5 rounded-full bg-white/20 text-[11px] font-bold tracking-wide">
+      <span className="truncate">{label || 'Masuk dengan Nomor WhatsApp'}</span>
+      <span className="px-2 py-0.5 rounded-full bg-white/20 text-[10px] sm:text-[11px] font-bold tracking-wide shrink-0 whitespace-nowrap">
         Segera hadir
       </span>
     </button>

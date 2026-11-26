@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -124,6 +125,7 @@ export function JobDetailView({
   const showingAllReviewsRef = useRef<boolean>(false)
 
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [toastType, setToastType] = useState<'success' | 'error' | 'info'>('success')
   const [showChatTooltip, setShowChatTooltip] = useState(false)
@@ -280,7 +282,8 @@ export function JobDetailView({
 
   // Aksi Lamar Pekerjaan (Insert atau Update dari Withdrawn)
   const handleApply = async () => {
-    if (isSubmitting) return
+    if (isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
 
     try {
@@ -343,13 +346,15 @@ export function JobDetailView({
       setToastType('error')
       setToastMessage('Terjadi kesalahan saat memproses lamaran.')
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   // Aksi Batalkan Lamaran (UPDATE status = 'withdrawn' saja)
   const handleWithdraw = async () => {
-    if (!application || isSubmitting) return
+    if (!application || isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
 
     try {
@@ -377,6 +382,7 @@ export function JobDetailView({
       setToastType('error')
       setToastMessage('Terjadi kesalahan saat membatalkan lamaran.')
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
@@ -498,11 +504,11 @@ export function JobDetailView({
         </header>
 
         {/* Konten Utama */}
-        <main className="flex-1 w-full px-4 pt-3 pb-32 flex flex-col gap-4">
+        <main className="flex-1 w-full px-4 pt-3 pb-36 flex flex-col gap-4">
           {/* Banner Pemilik Lowongan (Selalu tampil jika isOwner) */}
           {isOwner ? (
             <div className="p-3.5 rounded-2xl bg-orange-50 border border-orange-200 text-[#7A3000] flex items-center justify-between gap-2 shadow-xs">
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
                 <Store className="w-5 h-5 text-[#FF6B00] shrink-0" />
                 <div>
                   <p className="text-xs font-bold">Ini lowongan kamu</p>
@@ -633,7 +639,7 @@ export function JobDetailView({
                   <span className="text-[10px] font-bold text-gray-600 uppercase tracking-wider">
                     Upah Bersih
                   </span>
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[10px] font-bold">
                       <ShieldCheck className="w-3 h-3" />
                       Garansi Aman
@@ -678,10 +684,13 @@ export function JobDetailView({
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {job.business_photo ? (
-                      <img
+                      <Image
                         src={job.business_photo}
                         alt={job.business_name}
+                        width={44}
+                        height={44}
                         className="w-11 h-11 rounded-full object-cover shrink-0 border border-gray-200"
+                        unoptimized
                       />
                     ) : (
                       <div className="w-11 h-11 rounded-full bg-orange-100 text-[#FF6B00] font-extrabold text-sm flex items-center justify-center shrink-0 border border-orange-200">
@@ -879,9 +888,9 @@ export function JobDetailView({
 
                   {/* Badge Estimasi Jalan Kaki di pojok atas peta */}
                   {walkingDistanceText && (
-                    <div className="absolute top-2.5 left-2.5 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 z-10 border border-gray-100">
+                    <div className="absolute top-2.5 left-2.5 max-w-[calc(100%-20px)] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full shadow-md flex items-center gap-1.5 z-10 border border-gray-100">
                       <Footprints className="w-4 h-4 text-[#FF6B00] shrink-0" />
-                      <span className="text-xs font-bold text-[#0B1C30]">
+                      <span className="text-xs font-bold text-[#0B1C30] truncate">
                         {walkingDistanceText}
                       </span>
                     </div>

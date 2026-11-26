@@ -1,5 +1,5 @@
 import React, { Suspense } from "react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { FlashToast } from "@/components/shared/FlashToast";
 import "./globals.css";
@@ -11,8 +11,21 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Labor2Go – Solusi Kerja Mikro Mahasiswa & UMKM",
-  description: "Marketplace tenaga kerja mikro untuk mahasiswa dan UMKM sekitar kampus",
+  title: "Labor2Go",
+  description:
+    "Marketplace tenaga kerja mikro untuk mahasiswa dan UMKM sekitar kampus.",
+  icons: {
+    icon: "/icon-bebek.png",
+    shortcut: "/icon-bebek.png",
+    apple: "/icon-bebek.png",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#FF6B00",
 };
 
 export default function RootLayout({

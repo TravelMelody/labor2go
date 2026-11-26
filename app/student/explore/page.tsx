@@ -153,7 +153,10 @@ function ExploreContent() {
   }, [supabase])
 
   useEffect(() => {
-    fetchJobs(false)
+    const timer = setTimeout(() => {
+      void fetchJobs(false)
+    }, 0)
+    return () => clearTimeout(timer)
   }, [fetchJobs])
 
   // Sinkronisasi otomatis tiap 20 detik & saat tab kembali fokus tanpa indikator skeleton berkedip
@@ -265,19 +268,19 @@ function ExploreContent() {
   return (
     <div className="flex-1 w-full flex flex-col bg-[#F8F9FF]">
       {/* Top Header */}
-      <div className="px-4 pt-4 pb-2 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-extrabold text-[#0B1C30] tracking-tight">
+      <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-xl font-extrabold text-[#0B1C30] tracking-tight truncate">
             Eksplor Lowongan
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5 truncate">
             Pekerjaan santai sekitar kampus UNNES
           </p>
         </div>
         <Link
           href="/student"
           aria-label="Kembali ke Beranda"
-          className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all shadow-xs"
+          className="w-9 h-9 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-gray-600 hover:bg-gray-50 active:scale-95 transition-all shadow-xs shrink-0"
         >
           <ArrowLeft className="w-4.5 h-4.5" />
         </Link>
@@ -390,13 +393,13 @@ function ExploreContent() {
         </div>
 
         {/* Counter & Urutkan Selector */}
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
           <span className="text-xs text-gray-500">
             Menampilkan <strong className="text-[#0B1C30] font-bold">{filteredJobs.length}</strong> lowongan
           </span>
 
-          <div className="relative inline-flex items-center">
-            <div className="flex items-center gap-1.5 bg-white border border-gray-200/80 rounded-xl px-2.5 py-1.5 shadow-xs">
+          <div className="relative inline-flex items-center max-w-full">
+            <div className="flex items-center gap-1.5 bg-white border border-gray-200/80 rounded-xl px-2.5 py-1.5 shadow-xs max-w-full">
               <SlidersHorizontal className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <select
                 value={sortOption}

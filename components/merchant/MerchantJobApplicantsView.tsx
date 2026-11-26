@@ -167,6 +167,7 @@ export function MerchantJobApplicantsView({
   const [studentReviewsError, setStudentReviewsError] = useState<string | null>(null)
   const studentReviewsReqIdRef = useRef<number>(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef<boolean>(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
   // Toast state
@@ -480,7 +481,8 @@ export function MerchantJobApplicantsView({
 
   // Handle Accept Application (via RPC accept_application)
   const handleConfirmAccept = async () => {
-    if (!selectedAppForAccept) return
+    if (!selectedAppForAccept || isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setActionError(null)
 
@@ -519,13 +521,15 @@ export function MerchantJobApplicantsView({
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan sistem saat memproses lamaran.'
       setActionError(message)
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   // Handle Reject Application (Update status = 'rejected')
   const handleConfirmReject = async () => {
-    if (!selectedAppForReject) return
+    if (!selectedAppForReject || isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setActionError(null)
 
@@ -558,13 +562,15 @@ export function MerchantJobApplicantsView({
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat menolak lamaran.'
       setActionError(message)
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   // Handle Confirm Completion & Release Wages (via RPC confirm_completion)
   const handleConfirmCompletion = async () => {
-    if (!selectedAppForCompletion) return
+    if (!selectedAppForCompletion || isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setActionError(null)
 
@@ -597,13 +603,15 @@ export function MerchantJobApplicantsView({
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat mencairkan upah.'
       setActionError(message)
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   // Handle Report No Show (via RPC report_no_show)
   const handleConfirmNoShow = async () => {
-    if (!selectedAppForNoShow) return
+    if (!selectedAppForNoShow || isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setActionError(null)
 
@@ -642,12 +650,15 @@ export function MerchantJobApplicantsView({
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat melaporkan tidak hadir.'
       setActionError(message)
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   // Handle Cancel Job (via RPC cancel_job)
   const handleConfirmCancelJob = async () => {
+    if (isSubmitting || submittingRef.current) return
+    submittingRef.current = true
     setIsSubmitting(true)
     setActionError(null)
 
@@ -676,12 +687,13 @@ export function MerchantJobApplicantsView({
       const message = err instanceof Error ? err.message : 'Terjadi kesalahan saat membatalkan lowongan.'
       setActionError(message)
     } finally {
+      submittingRef.current = false
       setIsSubmitting(false)
     }
   }
 
   return (
-    <div className="flex-1 flex flex-col px-4 pt-5 pb-24 text-[#0B1C30]">
+    <div className="flex-1 flex flex-col px-4 pt-5 pb-28 text-[#0B1C30]">
       {/* Toast Notification */}
       {toast && (
         <div
@@ -712,19 +724,19 @@ export function MerchantJobApplicantsView({
 
       {/* Top Header */}
       <div className="flex items-center justify-between gap-3 mb-5">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           <Link
             href="/merchant/jobs"
-            className="w-10 h-10 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-[#0B1C30] hover:bg-gray-50 active:scale-95 transition-all shadow-xs"
+            className="w-10 h-10 rounded-full bg-white border border-gray-200/80 flex items-center justify-center text-[#0B1C30] hover:bg-gray-50 active:scale-95 transition-all shadow-xs shrink-0"
             aria-label="Kembali ke kelola lowongan"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
-          <div>
-            <h1 className="text-base font-bold text-[#0B1C30] tracking-tight">
-              Kelola Pelamar & Pekerja
+          <div className="min-w-0">
+            <h1 className="text-base font-bold text-[#0B1C30] tracking-tight truncate">
+              Kelola Pelamar &amp; Pekerja
             </h1>
-            <p className="text-[11px] text-gray-500">
+            <p className="text-[11px] text-gray-500 truncate">
               Lowongan: <span className="font-medium text-gray-700">{job.title}</span>
             </p>
           </div>
@@ -734,7 +746,7 @@ export function MerchantJobApplicantsView({
         <button
           onClick={() => refreshData(false)}
           disabled={isRefreshing}
-          className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="p-2 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors shrink-0"
           title="Segarkan data"
           aria-label="Segarkan data"
         >
@@ -745,7 +757,7 @@ export function MerchantJobApplicantsView({
       {/* 1. Ringkasan Lowongan Card */}
       <div className="bg-white rounded-3xl p-5 border border-gray-100/90 shadow-sm mb-5 relative overflow-hidden">
         {/* Status lowongan header */}
-        <div className="flex items-center justify-between gap-2 mb-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div className="flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
@@ -761,7 +773,11 @@ export function MerchantJobApplicantsView({
                 ? 'Mencari Pekerja'
                 : job.status === 'filled'
                 ? 'Slot Terpenuhi'
-                : job.status}
+                : job.status === 'in_progress'
+                ? 'Sedang Berjalan'
+                : job.status === 'completed'
+                ? 'Selesai'
+                : 'Dibatalkan'}
             </span>
           </div>
 
@@ -898,15 +914,15 @@ export function MerchantJobApplicantsView({
                       : 'border-gray-200'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3 mb-2.5">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-bold text-gray-900">
+                  <div className="flex items-start justify-between gap-2 mb-2.5">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <h3 className="text-sm font-bold text-gray-900 truncate">
                           {app.student.full_name || 'Mahasiswa'}
                         </h3>
                         {app.student.verified && (
                           <span
-                            className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full"
+                            className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0"
                             title="Terverifikasi"
                           >
                             <CheckCircle2 className="w-3 h-3" />
@@ -914,12 +930,12 @@ export function MerchantJobApplicantsView({
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5">{app.student.university}</p>
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{app.student.university}</p>
                     </div>
 
                     {/* Status badge per pekerja */}
                     {isPaid ? (
-                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold rounded-lg border border-emerald-300 flex items-center gap-1 shadow-xs">
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-extrabold rounded-lg border border-emerald-300 flex items-center gap-1 shadow-xs shrink-0 whitespace-nowrap">
                         <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                         <span>Selesai - Dibayar</span>
                       </span>
@@ -958,10 +974,10 @@ export function MerchantJobApplicantsView({
 
                   {/* Info Box Detail Kehadiran / Kerja */}
                   {isPaid ? (
-                    <div className="bg-emerald-50/80 border border-emerald-200/60 rounded-xl p-2.5 mb-3 text-xs text-emerald-950 flex items-center justify-between">
+                    <div className="bg-emerald-50/80 border border-emerald-200/60 rounded-xl p-2.5 mb-3 text-xs text-emerald-950 flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                        <span>Tugas selesai & upah telah dicairkan</span>
+                        <span>Tugas selesai &amp; upah telah dicairkan</span>
                       </div>
                       {app.checked_in_at && app.checked_out_at && (
                         <span className="text-[10px] text-emerald-700 font-medium">
@@ -971,7 +987,7 @@ export function MerchantJobApplicantsView({
                     </div>
                   ) : isCheckedOut && app.checked_out_at ? (
                     <div className="bg-blue-50/80 border border-blue-100 rounded-xl p-2.5 mb-3 text-xs text-blue-900 space-y-1">
-                      <div className="flex items-center justify-between font-semibold">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 font-semibold">
                         <span>Pekerja sudah check-out</span>
                         <span className="text-[11px] text-blue-700">
                           {formatTimeWIB(app.checked_out_at, { includeSuffix: true })}
@@ -982,7 +998,7 @@ export function MerchantJobApplicantsView({
                       </p>
                     </div>
                   ) : isCheckedIn && app.checked_in_at ? (
-                    <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-2.5 mb-3 text-xs text-emerald-900 flex items-center justify-between">
+                    <div className="bg-emerald-50/70 border border-emerald-100 rounded-xl p-2.5 mb-3 text-xs text-emerald-900 flex flex-wrap items-center justify-between gap-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                         <span className="font-bold">Sedang bekerja</span>
@@ -1075,11 +1091,11 @@ export function MerchantJobApplicantsView({
 
                   {/* Kontak WhatsApp */}
                   <div className="pt-2.5 border-t border-gray-100 flex items-center justify-between gap-2">
-                    <div className="text-xs">
+                    <div className="text-xs min-w-0">
                       <span className="text-gray-400 block text-[10px] uppercase font-bold">
                         Nomor WhatsApp
                       </span>
-                      <span className="font-bold text-gray-800">
+                      <span className="font-bold text-gray-800 truncate block">
                         {app.counterpart_phone || 'Nomor tidak tersedia'}
                       </span>
                     </div>
@@ -1089,7 +1105,7 @@ export function MerchantJobApplicantsView({
                         href={waUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs shrink-0"
                       >
                         <MessageCircle className="w-3.5 h-3.5 fill-white" />
                         <span>Hubungi via WA</span>
@@ -1231,7 +1247,7 @@ export function MerchantJobApplicantsView({
                       setSelectedAppForReject(app)
                     }}
                     disabled={isSubmitting}
-                    className="px-3.5 h-10 rounded-xl border border-gray-200 hover:bg-gray-50 active:scale-95 text-gray-700 text-xs font-bold transition-all flex items-center justify-center gap-1"
+                    className="px-3 h-10 rounded-xl border border-gray-200 hover:bg-gray-50 active:scale-95 text-gray-700 text-xs font-bold transition-all flex items-center justify-center gap-1 shrink-0"
                   >
                     <X className="w-3.5 h-3.5" />
                     <span>Tolak</span>
@@ -1244,7 +1260,7 @@ export function MerchantJobApplicantsView({
                       setSelectedAppForAccept(app)
                     }}
                     disabled={isSubmitting}
-                    className="flex-1 h-10 rounded-xl bg-[#FF6B00] hover:bg-[#e66000] active:scale-95 text-white text-xs font-bold transition-all shadow-sm shadow-orange-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 min-w-0 px-3 h-10 rounded-xl bg-[#FF6B00] hover:bg-[#e66000] active:scale-95 text-white text-xs font-bold transition-all shadow-sm shadow-orange-500/25 flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
                   >
                     <Check className="w-4 h-4 stroke-[3]" />
                     <span>Terima Pekerja Ini</span>
@@ -1359,7 +1375,7 @@ export function MerchantJobApplicantsView({
                     href="/merchant/wallet"
                     className="inline-flex items-center gap-1 text-[11px] font-bold text-[#FF6B00] underline"
                   >
-                    <span>Isi saldo (segera hadir)</span>
+                    <span>Isi saldo sekarang</span>
                     <ExternalLink className="w-3 h-3" />
                   </Link>
                 </div>

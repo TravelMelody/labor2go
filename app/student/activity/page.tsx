@@ -46,6 +46,24 @@ async function StudentActivityContent() {
     redirect('/login?redirectTo=/student/activity')
   }
 
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) {
+    console.error('Gagal memeriksa peran user untuk tugas aktif:', profileError)
+  }
+
+  const role = profile?.role || user.user_metadata?.role || 'student'
+  if (role === 'admin') {
+    redirect('/admin')
+  }
+  if (role !== 'student') {
+    redirect('/merchant/jobs')
+  }
+
   // 2. Query applications + jobs + payments
   const { data: appsData, error: appsError } = await supabase
     .from('applications')
