@@ -53,7 +53,8 @@ export async function updateSession(request: NextRequest) {
   if (!user) {
     if (isStudentRoute || isMerchantRoute || isChatRoute || isOnboardingRoute || isAdminRoute) {
       const url = request.nextUrl.clone()
-      url.pathname = '/login'
+      url.pathname = '/'
+      url.searchParams.set('auth', 'signin')
       if (!isOnboardingRoute) {
         url.searchParams.set('redirectTo', pathname)
       }
@@ -161,8 +162,8 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse
   }
 
-  // 3. Rute Login (/login) saat user sudah login
-  if (isAuthRoute) {
+  // 3. Rute Beranda (/) atau Login (/login) saat user sudah login
+  if (isAuthRoute || pathname === '/') {
     const url = request.nextUrl.clone()
     if (!hasCompletedProfile) {
       url.pathname = '/onboarding'

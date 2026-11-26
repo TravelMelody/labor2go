@@ -13,7 +13,7 @@ interface PublicBackHeaderProps {
 export function PublicBackHeader({
   title,
   subtitle,
-  fallbackHref = '/login',
+  fallbackHref = '/',
 }: PublicBackHeaderProps) {
   const router = useRouter()
 

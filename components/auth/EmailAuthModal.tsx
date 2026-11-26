@@ -1,47 +1,125 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { X, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
+import {
+  X,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+  GraduationCap,
+  Store,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { normalizeSpaces, validatePersonName } from '@/lib/validation'
-import { UserRole } from './RoleCard'
+
+export type AuthMode = 'signin' | 'signup'
+export type SignupRole = 'student' | 'umkm'
 
 interface EmailAuthModalProps {
   isOpen: boolean
+  mode: AuthMode
+  onModeChange: (mode: AuthMode) => void
   onClose: () => void
-  initialRole: UserRole
+  initialRole?: SignupRole
+  redirectTo?: string | null
+  initialError?: string | null
+}
+
+function getSafeRedirect(
+  raw: string | null | undefined,
+  role: 'student' | 'umkm' | 'admin'
+): string {
+  const defaultPath =
+    role === 'admin' ? '/admin' : role === 'umkm' ? '/merchant' : '/student'
+
+  if (!raw) return defaultPath
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed === '/login') {
+    return defaultPath
+  }
+
+  if (role === 'admin') {
+    return trimmed === '/admin' || trimmed.startsWith('/admin/')
+      ? trimmed
+      : '/admin'
+  }
+
+  if (role === 'student') {
+    if (
+      trimmed === '/student' ||
+      trimmed.startsWith('/student/') ||
+      trimmed.startsWith('/jobs/') ||
+      trimmed.startsWith('/chat/')
+    ) {
+      return trimmed
+    }
+    return '/student'
+  }
+
+  if (
+    trimmed === '/merchant' ||
+    trimmed.startsWith('/merchant/') ||
+    trimmed.startsWith('/jobs/') ||
+    trimmed.startsWith('/chat/')
+  ) {
+    return trimmed
+  }
+  return '/merchant'
 }
 
 export function EmailAuthModal({
   isOpen,
+  mode,
+  onModeChange,
   onClose,
-  initialRole,
+  initialRole = 'student',
+  redirectTo = null,
+  initialError = null,
 }: EmailAuthModalProps) {
   const router = useRouter()
   const supabase = createClient()
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin')
-  const [roleOverride, setRoleOverride] = useState<{
-    base: UserRole
-    selected: UserRole
-  } | null>(null)
-  const role =
-    roleOverride && roleOverride.base === initialRole
-      ? roleOverride.selected
-      : initialRole
-  const setRole = (next: UserRole) =>
-    setRoleOverride({ base: initialRole, selected: next })
-
+  const [role, setRole] = useState<SignupRole>(initialRole)
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [errorMsg, setErrorMsg] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string | null>(initialError)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) {
+        onClose()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, loading, onClose])
+
   if (!isOpen) return null
+
+  const handleSwitchMode = (nextMode: AuthMode) => {
+    if (loading) return
+    setErrorMsg(null)
+    setSuccessMsg(null)
+    onModeChange(nextMode)
+  }
+
+  const handleClose = () => {
+    if (loading) return
+    setErrorMsg(null)
+    setSuccessMsg(null)
+    onClose()
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -49,7 +127,7 @@ export function EmailAuthModal({
     setErrorMsg(null)
     setSuccessMsg(null)
 
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setErrorMsg('Harap lengkapi email dan kata sandi.')
       return
     }
@@ -72,7 +150,6 @@ export function EmailAuthModal({
 
     try {
       if (mode === 'signup') {
-        // Sign Up flow with options.data { role, full_name }
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -91,13 +168,12 @@ export function EmailAuthModal({
         }
 
         if (data?.user) {
-          // Baris profiles sudah dibuat otomatis oleh database trigger saat signup
           if (data.session) {
+            onClose()
             router.push('/onboarding')
             router.refresh()
             return
           } else {
-            // Perlu konfirmasi email
             setSuccessMsg(
               'Pendaftaran berhasil! Silakan periksa email Anda untuk verifikasi akun.'
             )
@@ -106,7 +182,6 @@ export function EmailAuthModal({
           }
         }
       } else {
-        // Sign In flow
         const { data, error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
           password,
@@ -123,127 +198,148 @@ export function EmailAuthModal({
         }
 
         if (data?.user) {
-          // Ambil peran dari tabel profiles
-          const { data: profile } = await supabase
+          const { data: profile, error: profileError } = await supabase
             .from('profiles')
             .select('role')
             .eq('id', data.user.id)
             .maybeSingle()
 
-          const targetRole = profile?.role || data.user.user_metadata?.role || role
+          if (profileError) {
+            if (profileError.code === 'P0001') {
+              console.warn('Peringatan membaca peran profil:', profileError.message)
+            } else {
+              console.error('Gagal membaca peran profil:', profileError)
+            }
+          }
+
+          const rawRole = profile?.role || data.user.user_metadata?.role
+          const targetRole: 'student' | 'umkm' | 'admin' =
+            rawRole === 'admin'
+              ? 'admin'
+              : rawRole === 'umkm'
+              ? 'umkm'
+              : 'student'
 
           if (targetRole === 'admin') {
-            router.push('/admin')
+            onClose()
+            router.push(getSafeRedirect(redirectTo, 'admin'))
             router.refresh()
             return
           }
 
-          const detailTable = targetRole === 'umkm' ? 'umkm_profiles' : 'student_profiles'
+          const detailTable =
+            targetRole === 'umkm' ? 'umkm_profiles' : 'student_profiles'
 
-          const { data: detailProfile } = await supabase
+          const { data: detailProfile, error: detailError } = await supabase
             .from(detailTable)
             .select('id')
             .eq('id', data.user.id)
             .maybeSingle()
 
+          if (detailError) {
+            console.error('Gagal memeriksa kelengkapan profil:', detailError)
+          }
+
+          onClose()
           if (!detailProfile) {
             router.push('/onboarding')
-          } else if (targetRole === 'umkm') {
-            router.push('/merchant')
           } else {
-            router.push('/student')
+            router.push(getSafeRedirect(redirectTo, targetRole))
           }
           router.refresh()
           return
         }
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.'
+      const message =
+        err instanceof Error ? err.message : 'Terjadi kesalahan tidak terduga.'
       setErrorMsg(message)
     } finally {
       setLoading(false)
     }
   }
 
-  const isStudent = role === 'student'
+  const isSignup = mode === 'signup'
+  const isStudentSignup = role === 'student'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="auth-modal-title"
+      onClick={handleClose}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-xs p-0 sm:p-4 animate-in fade-in duration-200"
+    >
       <div
-        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto"
+        className="w-full sm:max-w-md bg-white rounded-t-3xl sm:rounded-2xl p-5 sm:p-6 shadow-2xl relative max-h-[92vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button
-          onClick={onClose}
+          onClick={handleClose}
           type="button"
-          aria-label="Tutup"
-          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+          disabled={loading}
+          aria-label="Tutup modal autentikasi"
+          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors cursor-pointer disabled:opacity-50"
         >
           <X className="w-5 h-5" />
         </button>
 
-        {/* Role Pill Switcher */}
-        <div className="flex flex-wrap items-center gap-2 mb-4 pr-10">
-          <span className="text-xs text-gray-400 font-semibold uppercase tracking-wider">
-            Peran:
-          </span>
-          <button
-            type="button"
-            onClick={() => setRole(isStudent ? 'umkm' : 'student')}
-            className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-              isStudent
-                ? 'bg-[#FFEDE0] text-[#FF6B00]'
-                : 'bg-[#E5EEFF] text-[#0B1C30]'
-            }`}
-          >
-            {isStudent ? '🎓 Mahasiswa' : '🏪 Merchant (UMKM)'} (Ganti)
-          </button>
-        </div>
-
         {/* Header Title */}
-        <h3 className="text-xl font-bold text-[#0B1C30] mb-1">
-          {mode === 'signin' ? 'Masuk ke Akun' : 'Daftar Akun Baru'}
-        </h3>
-        <p className="text-xs sm:text-sm text-gray-500 mb-5">
-          {mode === 'signin'
-            ? `Masuk sebagai ${isStudent ? 'Mahasiswa' : 'Pemilik Usaha'}`
-            : `Daftar sebagai ${isStudent ? 'Mahasiswa pencari kerja' : 'Mitra UMKM'}`}
-        </p>
-
-        {/* Tabs Masuk / Daftar */}
-        <div className="grid grid-cols-2 p-1 bg-gray-100 rounded-xl mb-5">
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signin')
-              setErrorMsg(null)
-              setSuccessMsg(null)
-            }}
-            className={`py-2 text-xs sm:text-sm font-bold rounded-lg transition-all ${
-              mode === 'signin'
-                ? 'bg-white text-[#0B1C30] shadow-xs'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Masuk
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode('signup')
-              setErrorMsg(null)
-              setSuccessMsg(null)
-            }}
-            className={`py-2 text-xs sm:text-sm font-bold rounded-lg transition-all ${
-              mode === 'signup'
-                ? 'bg-white text-[#0B1C30] shadow-xs'
-                : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Daftar Akun
-          </button>
+        <div className="pr-10 mb-5">
+          <h3 id="auth-modal-title" className="text-xl font-extrabold text-[#0B1C30] mb-1">
+            {isSignup ? 'Daftar Akun Baru' : 'Masuk ke Labor2Go'}
+          </h3>
+          <p className="text-xs sm:text-sm text-gray-500">
+            {isSignup
+              ? 'Pilih peran lalu lengkapi data untuk mulai di Labor2Go'
+              : 'Masukkan email dan kata sandi akun Anda'}
+          </p>
         </div>
+
+        {/* Role Tabs ONLY on Daftar (Signup) */}
+        {isSignup && (
+          <div
+            role="tablist"
+            aria-label="Pilih peran pendaftaran"
+            className="grid grid-cols-2 p-1 bg-gray-100 rounded-xl mb-5 gap-1"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'student'}
+              onClick={() => {
+                setRole('student')
+                setErrorMsg(null)
+              }}
+              className={`py-2.5 px-2 text-xs sm:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                role === 'student'
+                  ? 'bg-white text-[#FF6B00] shadow-xs'
+                  : 'text-gray-500 hover:text-[#0B1C30]'
+              }`}
+            >
+              <GraduationCap className="w-4 h-4 shrink-0" />
+              <span>Mahasiswa</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={role === 'umkm'}
+              onClick={() => {
+                setRole('umkm')
+                setErrorMsg(null)
+              }}
+              className={`py-2.5 px-2 text-xs sm:text-sm font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                role === 'umkm'
+                  ? 'bg-white text-[#0B1C30] shadow-xs'
+                  : 'text-gray-500 hover:text-[#0B1C30]'
+              }`}
+            >
+              <Store className="w-4 h-4 shrink-0" />
+              <span>Merchant</span>
+            </button>
+          </div>
+        )}
 
         {/* Alert Error / Success */}
         {errorMsg && (
@@ -262,18 +358,24 @@ export function EmailAuthModal({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3.5">
-          {mode === 'signup' && (
+          {isSignup && (
             <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">
+              <label
+                htmlFor="auth-fullname"
+                className="block text-xs font-semibold text-gray-700 mb-1"
+              >
                 Nama Lengkap
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
+                  id="auth-fullname"
                   type="text"
                   required
                   maxLength={60}
-                  placeholder={isStudent ? 'Contoh: Bagas Pratama' : 'Contoh: Budi Santoso'}
+                  placeholder={
+                    isStudentSignup ? 'Contoh: Bagas Pratama' : 'Contoh: Budi Santoso'
+                  }
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 focus:outline-none focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] text-sm text-[#0B1C30]"
@@ -283,14 +385,19 @@ export function EmailAuthModal({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label
+              htmlFor="auth-email"
+              className="block text-xs font-semibold text-gray-700 mb-1"
+            >
               Alamat Email
             </label>
             <div className="relative">
               <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
+                id="auth-email"
                 type="email"
                 required
+                autoComplete="email"
                 placeholder="nama@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -300,14 +407,19 @@ export function EmailAuthModal({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-1">
+            <label
+              htmlFor="auth-password"
+              className="block text-xs font-semibold text-gray-700 mb-1"
+            >
               Kata Sandi
             </label>
             <div className="relative">
               <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
+                id="auth-password"
                 type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete={isSignup ? 'new-password' : 'current-password'}
                 placeholder="Minimal 6 karakter"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -316,8 +428,8 @@ export function EmailAuthModal({
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
-                aria-label="Lihat kata sandi"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 cursor-pointer"
+                aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
               >
                 {showPassword ? (
                   <EyeOff className="w-4 h-4" />
@@ -332,10 +444,10 @@ export function EmailAuthModal({
           <button
             type="submit"
             disabled={loading}
-            className={`mt-2 w-full h-12 rounded-full text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed ${
-              isStudent
-                ? 'bg-[#FF6B00] hover:bg-[#E05E00] shadow-[#FF6B00]/25'
-                : 'bg-[#0B1C30] hover:bg-[#152843] shadow-gray-900/20'
+            className={`mt-2 w-full h-12 rounded-full text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer ${
+              isSignup && !isStudentSignup
+                ? 'bg-[#0B1C30] hover:bg-[#152843] shadow-gray-900/20'
+                : 'bg-[#FF6B00] hover:bg-[#E05E00] shadow-[#FF6B00]/25'
             }`}
           >
             {loading ? (
@@ -343,13 +455,44 @@ export function EmailAuthModal({
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Memproses...</span>
               </>
-            ) : mode === 'signin' ? (
-              `Masuk Sebagai ${isStudent ? 'Mahasiswa' : 'Merchant'}`
+            ) : isSignup ? (
+              isStudentSignup ? (
+                'Daftar Sebagai Mahasiswa'
+              ) : (
+                'Daftar Sebagai Merchant'
+              )
             ) : (
-              `Daftar Sebagai ${isStudent ? 'Mahasiswa' : 'Merchant'}`
+              'Masuk'
             )}
           </button>
         </form>
+
+        {/* Footer Mode Switcher */}
+        <p className="mt-4 text-center text-xs sm:text-sm text-gray-600">
+          {isSignup ? (
+            <>
+              Sudah memiliki akun?{' '}
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('signin')}
+                className="font-bold text-[#FF6B00] hover:text-[#E05E00] hover:underline cursor-pointer"
+              >
+                Masuk di sini.
+              </button>
+            </>
+          ) : (
+            <>
+              Belum punya akun?{' '}
+              <button
+                type="button"
+                onClick={() => handleSwitchMode('signup')}
+                className="font-bold text-[#FF6B00] hover:text-[#E05E00] hover:underline cursor-pointer"
+              >
+                Daftar di sini.
+              </button>
+            </>
+          )}
+        </p>
       </div>
     </div>
   )

@@ -27,7 +27,7 @@ export default function OnboardingPage() {
         } = await supabase.auth.getUser()
 
         if (!user) {
-          router.replace('/login')
+          router.replace('/?auth=signin')
           return
         }
 
@@ -106,7 +106,7 @@ export default function OnboardingPage() {
     setLoggingOut(true)
     try {
       await supabase.auth.signOut()
-      router.push('/login')
+      router.push('/')
       router.refresh()
     } finally {
       setLoggingOut(false)

@@ -62,7 +62,7 @@ export default function StudentHomePage() {
       } = await supabase.auth.getUser()
 
       if (!user) {
-        router.push('/login?redirectTo=/student')
+        router.push('/?auth=signin&redirectTo=/student')
         return
       }
 

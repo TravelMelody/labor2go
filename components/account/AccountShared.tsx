@@ -199,7 +199,7 @@ export function LogoutButtonWithDialog() {
         return
       }
       setOpen(false)
-      router.push('/login')
+      router.push('/')
       router.refresh()
     } catch (err) {
       logSupabaseError('LogoutButtonWithDialog.catch', err)

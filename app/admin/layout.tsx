@@ -31,7 +31,7 @@ async function AdminGuard({ children }: { children: React.ReactNode }) {
   } = await supabase.auth.getUser()
 
   if (authError || !user) {
-    redirect('/login?redirectTo=/admin')
+    redirect('/?auth=signin&redirectTo=/admin')
   }
 
   const { data: profile, error: profileError } = await supabase

@@ -48,5 +48,5 @@ export async function GET(request: Request) {
   }
 
   // Jika otentikasi gagal atau tidak ada kode
-  return NextResponse.redirect(`${origin}/login?error=auth_failed`)
+  return NextResponse.redirect(`${origin}/?auth=signin&error=auth_failed`)
 }

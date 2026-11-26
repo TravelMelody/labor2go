@@ -147,7 +147,7 @@ export default function MerchantDashboardPage() {
         }
 
         if (userError || !user) {
-          router.replace('/login?redirectTo=/merchant')
+          router.replace('/?auth=signin&redirectTo=/merchant')
           return
         }
 

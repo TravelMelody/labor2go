@@ -88,7 +88,7 @@ async function JobDetailContent({ params }: PageProps) {
   } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect(`/login?redirectTo=/jobs/${id}`)
+    redirect(`/?auth=signin&redirectTo=/jobs/${id}`)
   }
 
   // 2. Ambil profil user saat ini (role, verified, full_name)

@@ -20,7 +20,7 @@ export function RoleHomeButton({
   className = '',
 }: RoleHomeButtonProps) {
   const [target, setTarget] = useState<HomeTarget>({
-    href: '/login',
+    href: '/',
     label: 'Kembali ke Beranda',
   })
 
@@ -38,8 +38,8 @@ export function RoleHomeButton({
 
         if (!user) {
           setTarget({
-            href: '/login',
-            label: 'Kembali ke Halaman Masuk',
+            href: '/',
+            label: 'Kembali ke Beranda',
           })
           return
         }

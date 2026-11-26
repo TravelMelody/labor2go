@@ -69,7 +69,7 @@ export function AdminShell({ adminName, children }: AdminShellProps) {
     setLoggingOut(true)
     try {
       await supabase.auth.signOut()
-      router.push('/login')
+      router.push('/')
       router.refresh()
     } finally {
       setLoggingOut(false)
