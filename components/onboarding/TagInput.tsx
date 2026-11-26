@@ -2,6 +2,7 @@
 
 import React, { useState, KeyboardEvent } from 'react'
 import { Plus, X, Tag } from 'lucide-react'
+import { MAX_SKILLS_COUNT, normalizeSpaces, validateSkill } from '@/lib/validation'
 
 interface TagInputProps {
   tags: string[]
@@ -10,6 +11,7 @@ interface TagInputProps {
   placeholder?: string
   disabled?: boolean
   error?: string | null
+  maxTags?: number
 }
 
 export function TagInput({
@@ -19,22 +21,40 @@ export function TagInput({
   placeholder = 'Ketik skill lalu tekan Enter...',
   disabled = false,
   error = null,
+  maxTags = MAX_SKILLS_COUNT,
 }: TagInputProps) {
   const [inputValue, setInputValue] = useState('')
+  const [internalError, setInternalError] = useState<string | null>(null)
 
   const addTag = (tagToAdd: string) => {
-    const cleanTag = tagToAdd.trim()
+    const cleanTag = normalizeSpaces(tagToAdd)
     if (!cleanTag) return
 
-    // Cegah duplikasi (case-insensitive)
     const exists = tags.some((t) => t.toLowerCase() === cleanTag.toLowerCase())
-    if (!exists) {
-      onChange([...tags, cleanTag])
+    if (exists) {
+      setInternalError(null)
+      setInputValue('')
+      return
     }
+
+    if (tags.length >= maxTags) {
+      setInternalError(`Maksimal ${maxTags} skill.`)
+      return
+    }
+
+    const skillError = validateSkill(cleanTag)
+    if (skillError) {
+      setInternalError(skillError)
+      return
+    }
+
+    setInternalError(null)
+    onChange([...tags, cleanTag])
     setInputValue('')
   }
 
   const removeTag = (tagToRemove: string) => {
+    setInternalError(null)
     onChange(tags.filter((t) => t !== tagToRemove))
   }
 
@@ -50,18 +70,26 @@ export function TagInput({
   const toggleSuggestion = (suggestion: string) => {
     const exists = tags.some((t) => t.toLowerCase() === suggestion.toLowerCase())
     if (exists) {
+      setInternalError(null)
       onChange(tags.filter((t) => t.toLowerCase() !== suggestion.toLowerCase()))
     } else {
+      if (tags.length >= maxTags) {
+        setInternalError(`Maksimal ${maxTags} skill.`)
+        return
+      }
+      setInternalError(null)
       onChange([...tags, suggestion])
     }
   }
+
+  const activeError = internalError || error
 
   return (
     <div className="w-full flex flex-col gap-2">
       {/* Box Input & Active Tags */}
       <div
         className={`w-full min-h-[46px] p-2 rounded-xl bg-white border transition-colors flex flex-wrap items-center gap-1.5 ${
-          error
+          activeError
             ? 'border-red-400 focus-within:border-red-500 focus-within:ring-1 focus-within:ring-red-400'
             : 'border-gray-200 focus-within:border-[#FF6B00] focus-within:ring-1 focus-within:ring-[#FF6B00]'
         } ${disabled ? 'opacity-60 pointer-events-none' : ''}`}
@@ -87,7 +115,11 @@ export function TagInput({
           <input
             type="text"
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            maxLength={30}
+            onChange={(e) => {
+              setInputValue(e.target.value)
+              if (internalError) setInternalError(null)
+            }}
             onKeyDown={handleKeyDown}
             placeholder={tags.length === 0 ? placeholder : 'Tambah lagi...'}
             disabled={disabled}
@@ -111,7 +143,7 @@ export function TagInput({
         <div className="flex flex-col gap-1.5 mt-0.5">
           <span className="text-[11px] text-gray-500 font-medium flex items-center gap-1">
             <Tag className="w-3 h-3 text-[#FF6B00]" />
-            Pilihan cepat:
+            Pilihan cepat (maks. {maxTags}):
           </span>
           <div className="flex flex-wrap gap-1.5">
             {suggestions.map((suggestion) => {
@@ -138,7 +170,9 @@ export function TagInput({
         </div>
       )}
 
-      {error && <p className="text-[11px] text-red-500 font-medium mt-0.5">{error}</p>}
+      {activeError && (
+        <p className="text-[11px] text-red-500 font-medium mt-0.5">{activeError}</p>
+      )}
     </div>
   )
 }

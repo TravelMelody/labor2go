@@ -4,6 +4,7 @@ import React, { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { X, Mail, Lock, User, Eye, EyeOff, Loader2, AlertCircle, CheckCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { normalizeSpaces, validatePersonName } from '@/lib/validation'
 import { UserRole } from './RoleCard'
 
 interface EmailAuthModalProps {
@@ -53,9 +54,13 @@ export function EmailAuthModal({
       return
     }
 
-    if (mode === 'signup' && !fullName.trim()) {
-      setErrorMsg('Harap masukkan nama lengkap Anda.')
-      return
+    const cleanFullName = normalizeSpaces(fullName)
+    if (mode === 'signup') {
+      const nameError = validatePersonName(cleanFullName, 'Nama lengkap')
+      if (nameError) {
+        setErrorMsg(nameError)
+        return
+      }
     }
 
     if (password.length < 6) {
@@ -74,7 +79,7 @@ export function EmailAuthModal({
           options: {
             data: {
               role,
-              full_name: fullName.trim(),
+              full_name: cleanFullName,
             },
           },
         })
@@ -267,7 +272,8 @@ export function EmailAuthModal({
                 <input
                   type="text"
                   required
-                  placeholder={isStudent ? 'Contoh: Bagas Pratama' : 'Contoh: Toko Kopi Senja'}
+                  maxLength={60}
+                  placeholder={isStudent ? 'Contoh: Bagas Pratama' : 'Contoh: Budi Santoso'}
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 focus:outline-none focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] text-sm text-[#0B1C30]"

@@ -56,7 +56,7 @@ async function StudentAccountContent() {
   const [profileRes, studentRes, ratingRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, verified, verification_status, role')
+      .select('full_name, avatar_url, verified, verification_status, role')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -108,6 +108,7 @@ async function StudentAccountContent() {
   return (
     <StudentAccountView
       fullName={fullName}
+      avatarUrl={profileRes.data?.avatar_url ?? null}
       university={university}
       level={level}
       completedJobs={completedJobs}

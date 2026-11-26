@@ -35,6 +35,7 @@ import {
   getFirstName,
 } from '@/lib/format'
 import { VerificationBanner } from '@/components/shared/VerificationBanner'
+import { NotificationBell } from '@/components/shared/NotificationBell'
 import {
   normalizeVerificationStatus,
   type VerificationStatus,
@@ -433,7 +434,10 @@ export default function MerchantDashboardPage() {
       <div className="w-full max-w-[420px] mx-auto min-h-screen flex flex-col bg-[#F8F9FF] pb-28 animate-pulse">
         <div className="h-16 px-4 bg-white border-b border-slate-100 flex items-center justify-between">
           <div className="w-32 h-7 rounded bg-gray-200" />
-          <div className="w-9 h-9 rounded-full bg-gray-200" />
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-gray-200" />
+            <div className="w-9 h-9 rounded-full bg-gray-200" />
+          </div>
         </div>
         <div className="px-4 pt-4 flex flex-col gap-5">
           <div className="flex flex-col gap-2">
@@ -511,24 +515,27 @@ export default function MerchantDashboardPage() {
             className="h-8 w-auto object-contain"
             priority
           />
-          <Link
-            href="/merchant/account"
-            aria-label="Pengaturan Akun Toko"
-            className="relative w-9 h-9 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/80 flex items-center justify-center font-bold text-xs shadow-xs hover:opacity-90 transition-opacity shrink-0"
-          >
-            {photoUrl ? (
-              <Image
-                src={photoUrl}
-                alt={businessName || 'Akun Toko'}
-                fill
-                className="object-cover"
-                sizes="36px"
-                unoptimized
-              />
-            ) : (
-              <span>{avatarInitials}</span>
-            )}
-          </Link>
+          <div className="flex items-center gap-2">
+            <NotificationBell userId={userId} />
+            <Link
+              href="/merchant/account"
+              aria-label="Pengaturan Akun Toko"
+              className="relative w-9 h-9 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/80 flex items-center justify-center font-bold text-xs shadow-xs hover:opacity-90 transition-opacity shrink-0"
+            >
+              {photoUrl ? (
+                <Image
+                  src={photoUrl}
+                  alt={businessName || 'Akun Toko'}
+                  fill
+                  className="object-cover"
+                  sizes="36px"
+                  unoptimized
+                />
+              ) : (
+                <span>{avatarInitials}</span>
+              )}
+            </Link>
+          </div>
         </div>
       </header>
 

@@ -10,6 +10,18 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadAvatarFile } from '@/lib/avatar'
+import {
+  formatValidationConstraintError,
+  normalizeSpaces,
+  validateIndonesianPhone,
+  validateNim,
+  validatePersonName,
+  validateSkillsList,
+  validateUniversity,
+} from '@/lib/validation'
+import { getInitials } from '@/components/account/AccountShared'
+import { AvatarUploadField } from '@/components/account/AvatarUploadField'
 import { TagInput } from './TagInput'
 import { ImageUploadField } from './ImageUploadField'
 
@@ -34,6 +46,7 @@ export function StudentOnboardingForm({
   const [nim, setNim] = useState('')
   const [university, setUniversity] = useState('Universitas Negeri Semarang')
   const [skills, setSkills] = useState<string[]>([])
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [ktmFile, setKtmFile] = useState<File | null>(null)
 
   // Validation & UI states
@@ -44,37 +57,20 @@ export function StudentOnboardingForm({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    // Nama Lengkap
-    if (!fullName.trim()) {
-      newErrors.fullName = 'Nama lengkap wajib diisi.'
-    } else if (fullName.trim().length < 2) {
-      newErrors.fullName = 'Nama lengkap minimal 2 karakter.'
-    }
+    const fullNameError = validatePersonName(fullName, 'Nama lengkap')
+    if (fullNameError) newErrors.fullName = fullNameError
 
-    // Nomor HP
-    const cleanPhone = phone.trim().replace(/[-\s]/g, '')
-    if (!cleanPhone) {
-      newErrors.phone = 'Nomor WhatsApp / HP wajib diisi.'
-    } else if (!/^[0-9+]{9,15}$/.test(cleanPhone)) {
-      newErrors.phone = 'Nomor HP tidak valid (hanya angka, 9-15 digit).'
-    }
+    const { error: phoneError } = validateIndonesianPhone(phone)
+    if (phoneError) newErrors.phone = phoneError
 
-    // NIM (wajib, hanya angka)
-    if (!nim.trim()) {
-      newErrors.nim = 'NIM wajib diisi.'
-    } else if (!/^\d+$/.test(nim.trim())) {
-      newErrors.nim = 'NIM harus berupa angka saja tanpa spasi atau huruf.'
-    }
+    const nimError = validateNim(nim)
+    if (nimError) newErrors.nim = nimError
 
-    // Kampus
-    if (!university.trim()) {
-      newErrors.university = 'Nama kampus wajib diisi.'
-    }
+    const universityError = validateUniversity(university)
+    if (universityError) newErrors.university = universityError
 
-    // Skill
-    if (skills.length === 0) {
-      newErrors.skills = 'Pilih atau ketik minimal 1 skill yang kamu miliki.'
-    }
+    const skillsError = validateSkillsList(skills)
+    if (skillsError) newErrors.skills = skillsError
 
     // Foto KTM (wajib)
     if (!ktmFile) {
@@ -135,14 +131,30 @@ export function StudentOnboardingForm({
         )
       }
 
-      // 2. Simpan nama lengkap dan nomor HP ke profiles
-      // Role authenticated HANYA punya izin UPDATE pada kolom full_name dan phone
+      // 1b. Upload foto profil (opsional) ke bucket "avatars"
+      let uploadedAvatarUrl: string | null = null
+      if (avatarFile) {
+        uploadedAvatarUrl = await uploadAvatarFile(supabase, user.id, avatarFile)
+      }
+
+      // 2. Simpan nama lengkap, nomor HP, dan avatar_url (jika ada) ke profiles
+      // Role authenticated HANYA punya izin UPDATE pada kolom full_name, phone, dan avatar_url
+      const { clean: cleanPhone } = validateIndonesianPhone(phone)
+      const profileUpdatePayload: {
+        full_name: string
+        phone: string
+        avatar_url?: string
+      } = {
+        full_name: normalizeSpaces(fullName),
+        phone: cleanPhone,
+      }
+      if (uploadedAvatarUrl) {
+        profileUpdatePayload.avatar_url = uploadedAvatarUrl
+      }
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          full_name: fullName.trim(),
-          phone: phone.trim(),
-        })
+        .update(profileUpdatePayload)
         .eq('id', user.id)
 
       if (profileError) {
@@ -152,7 +164,12 @@ export function StudentOnboardingForm({
           hint: profileError.hint,
           code: profileError.code,
         })
-        throw new Error(`Gagal memperbarui profil: ${profileError.message}`)
+        throw new Error(
+          formatValidationConstraintError(
+            profileError,
+            `Gagal memperbarui profil: ${profileError.message}`
+          )
+        )
       }
 
       // 3. Simpan baris detail ke student_profiles
@@ -162,8 +179,8 @@ export function StudentOnboardingForm({
         .upsert({
           id: user.id,
           nim: nim.trim(),
-          university: university.trim(),
-          skills: skills,
+          university: normalizeSpaces(university),
+          skills: skills.map((s) => normalizeSpaces(s)),
           ktm_url: filePath,
         })
 
@@ -175,7 +192,10 @@ export function StudentOnboardingForm({
           code: studentProfileError.code,
         })
         throw new Error(
-          `Gagal menyimpan profil mahasiswa: ${studentProfileError.message}`
+          formatValidationConstraintError(
+            studentProfileError,
+            `Gagal menyimpan profil mahasiswa: ${studentProfileError.message}`
+          )
         )
       }
 
@@ -213,6 +233,16 @@ export function StudentOnboardingForm({
           <span>Informasi Mahasiswa</span>
         </h3>
 
+        <AvatarUploadField
+          label="Foto Profil (Opsional)"
+          helperText="Foto ini membantu UMKM mengenalimu saat melamar pekerjaan."
+          currentUrl={null}
+          pendingFile={avatarFile}
+          initials={getInitials(fullName, 'M')}
+          onFileSelect={setAvatarFile}
+          disabled={submitting}
+        />
+
         {/* Nama Lengkap */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-bold text-[#0B1C30]">
@@ -222,6 +252,7 @@ export function StudentOnboardingForm({
             <input
               type="text"
               value={fullName}
+              maxLength={60}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Contoh: Bagas Pratama"
               disabled={submitting}
@@ -283,6 +314,7 @@ export function StudentOnboardingForm({
           <input
             type="text"
             inputMode="numeric"
+            maxLength={20}
             value={nim}
             onChange={(e) => {
               // Hanya perbolehkan karakter angka
@@ -309,6 +341,7 @@ export function StudentOnboardingForm({
           </label>
           <input
             type="text"
+            maxLength={80}
             value={university}
             onChange={(e) => setUniversity(e.target.value)}
             placeholder="Nama Universitas Anda"

@@ -309,3 +309,27 @@ export function formatWhatsAppUrl(
   return baseUrl
 }
 
+/**
+ * Format waktu relatif berbahasa Indonesia untuk daftar notifikasi.
+ */
+export function formatRelativeTimeID(dateInput: string | Date): string {
+  const date = typeof dateInput === 'string' ? new Date(dateInput) : dateInput
+  if (isNaN(date.getTime())) return '-'
+
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return 'Baru saja'
+  if (diffMinutes < 60) return `${diffMinutes} menit lalu`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} jam lalu`
+
+  const now = new Date()
+  const yesterdayKey = getWibDateKey(new Date(now.getTime() - 24 * 60 * 60 * 1000))
+  if (getWibDateKey(date) === yesterdayKey) return 'Kemarin'
+
+  return formatDateWIB(date)
+}
+
+

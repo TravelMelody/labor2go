@@ -27,6 +27,13 @@ import {
   MIN_HOURLY_RATE,
   isAboveOrEqualUmr,
 } from '@/lib/pricing'
+import {
+  formatValidationConstraintError,
+  normalizeSpaces,
+  validateAddress,
+  validateJobDescription,
+  validateJobTitle,
+} from '@/lib/validation'
 
 const QUICK_TITLES = ['Cuci Loyang', 'Bantu Kasir', 'Packing'] as const
 const UUID_REGEX =
@@ -325,12 +332,12 @@ function MerchantPostJobContent() {
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    // 1. Jenis Bantuan / Judul
-    if (!title.trim()) {
-      newErrors.title = 'Jenis bantuan / judul lowongan wajib diisi.'
-    } else if (title.trim().length < 3) {
-      newErrors.title = 'Judul minimal 3 karakter.'
-    }
+    // 1. Jenis Bantuan / Judul & Deskripsi
+    const titleError = validateJobTitle(title)
+    if (titleError) newErrors.title = titleError
+
+    const descriptionError = validateJobDescription(description)
+    if (descriptionError) newErrors.description = descriptionError
 
     // 2. Waktu & Tanggal
     if (!startDateStr) {
@@ -397,14 +404,22 @@ function MerchantPostJobContent() {
         startDateTime.getTime() + durationHours * 3600 * 1000
       )
 
+      const cleanTitle = normalizeSpaces(title)
+      const cleanDescription = description.trim() || null
+      const rawLocation =
+        umkmLocation?.address || umkmLocation?.business_name || ''
+      const cleanLocation =
+        rawLocation && !validateAddress(rawLocation)
+          ? normalizeSpaces(rawLocation)
+          : null
+
       // 1. Insert ke tabel jobs
       // Sesuai schema: umkm_id, title, description, location_name, lat, lng, start_at, end_at, pay_amount, slots, status
       const { error: jobError } = await supabase.from('jobs').insert({
         umkm_id: userId,
-        title: title.trim(),
-        description: description.trim() || null,
-        location_name:
-          umkmLocation?.address || umkmLocation?.business_name || null,
+        title: cleanTitle,
+        description: cleanDescription,
+        location_name: cleanLocation,
         lat: umkmLocation?.lat ?? null,
         lng: umkmLocation?.lng ?? null,
         start_at: startDateTime.toISOString(),
@@ -422,7 +437,10 @@ function MerchantPostJobContent() {
           code: jobError.code,
         })
         throw new Error(
-          `Gagal mempublikasikan lowongan: ${jobError.message}`
+          formatValidationConstraintError(
+            jobError,
+            `Gagal mempublikasikan lowongan: ${jobError.message}`
+          )
         )
       }
 
@@ -433,8 +451,8 @@ function MerchantPostJobContent() {
           .from('job_templates')
           .insert({
             umkm_id: userId,
-            title: title.trim(),
-            description: description.trim() || null,
+            title: cleanTitle,
+            description: cleanDescription,
             duration_hours: durationHours,
             pay_amount: payAmount,
             slots: slots,
@@ -555,6 +573,7 @@ function MerchantPostJobContent() {
             <div className="flex flex-col gap-1">
               <input
                 type="text"
+                maxLength={60}
                 value={title}
                 onChange={(e) => {
                   setTitle(e.target.value)
@@ -576,16 +595,37 @@ function MerchantPostJobContent() {
 
             {/* Optional Description */}
             <div className="flex flex-col gap-1 pt-1">
-              <label className="text-xs font-semibold text-gray-700">
-                Deskripsi Pekerjaan <span className="font-normal text-gray-400">(Opsional)</span>
-              </label>
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-semibold text-gray-700">
+                  Deskripsi Pekerjaan{' '}
+                  <span className="font-normal text-gray-400">(Opsional)</span>
+                </label>
+                <span className="text-[10px] text-gray-400 font-medium">
+                  {description.length}/500
+                </span>
+              </div>
               <textarea
                 value={description}
-                onChange={(e) => setDescription(e.target.value)}
+                maxLength={500}
+                onChange={(e) => {
+                  setDescription(e.target.value)
+                  if (errors.description) {
+                    setErrors((prev) => ({ ...prev, description: '' }))
+                  }
+                }}
                 rows={3}
                 placeholder="Jelaskan instruksi spesifik, pakaian kerja yang disarankan, atau catatan penting untuk pelamar..."
-                className="w-full bg-[#F8F9FF] text-[#0B1C30] text-xs font-medium p-3 rounded-xl border border-gray-200 transition-all placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 focus:border-[#FF6B00] resize-none"
+                className={`w-full bg-[#F8F9FF] text-[#0B1C30] text-xs font-medium p-3 rounded-xl border transition-all placeholder:text-gray-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/20 resize-none ${
+                  errors.description
+                    ? 'border-red-400 focus:border-red-500'
+                    : 'border-gray-200 focus:border-[#FF6B00]'
+                }`}
               />
+              {errors.description && (
+                <p className="text-[11px] text-red-600 mt-0.5">
+                  {errors.description}
+                </p>
+              )}
             </div>
           </div>
 

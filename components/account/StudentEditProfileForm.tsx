@@ -12,10 +12,22 @@ import {
   Save,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadAvatarFile } from '@/lib/avatar'
+import {
+  formatValidationConstraintError,
+  normalizeSpaces,
+  validateIndonesianPhone,
+  validateNim,
+  validatePersonName,
+  validateSkillsList,
+  validateUniversity,
+} from '@/lib/validation'
 import { TagInput } from '@/components/onboarding/TagInput'
+import { AvatarUploadField } from '@/components/account/AvatarUploadField'
 import {
   AccountSubpageHeader,
   LockedFieldNotice,
+  getInitials,
   logSupabaseError,
 } from '@/components/account/AccountShared'
 
@@ -23,6 +35,7 @@ interface StudentEditProfileFormProps {
   userId: string
   verified: boolean
   initialFullName: string
+  initialAvatarUrl: string | null
   initialPhone: string
   initialUniversity: string
   initialNim: string
@@ -33,6 +46,7 @@ export function StudentEditProfileForm({
   userId,
   verified,
   initialFullName,
+  initialAvatarUrl,
   initialPhone,
   initialUniversity,
   initialNim,
@@ -42,6 +56,11 @@ export function StudentEditProfileForm({
   const supabase = createClient()
 
   const [fullName, setFullName] = useState(initialFullName)
+  const [currentAvatarUrl, setCurrentAvatarUrl] = useState<string | null>(
+    initialAvatarUrl
+  )
+  const [newAvatarFile, setNewAvatarFile] = useState<File | null>(null)
+  const [removeAvatar, setRemoveAvatar] = useState(false)
   const [phone, setPhone] = useState(initialPhone)
   const [university, setUniversity] = useState(initialUniversity)
   const [nim, setNim] = useState(initialNim)
@@ -56,33 +75,21 @@ export function StudentEditProfileForm({
     const newErrors: Record<string, string> = {}
 
     if (!verified) {
-      if (!fullName.trim()) {
-        newErrors.fullName = 'Nama lengkap wajib diisi.'
-      } else if (fullName.trim().length < 2) {
-        newErrors.fullName = 'Nama lengkap minimal 2 karakter.'
-      }
+      const fullNameError = validatePersonName(fullName, 'Nama lengkap')
+      if (fullNameError) newErrors.fullName = fullNameError
 
-      if (!nim.trim()) {
-        newErrors.nim = 'NIM wajib diisi.'
-      } else if (!/^\d+$/.test(nim.trim())) {
-        newErrors.nim = 'NIM harus berupa angka saja tanpa spasi atau huruf.'
-      }
+      const nimError = validateNim(nim)
+      if (nimError) newErrors.nim = nimError
 
-      if (!university.trim()) {
-        newErrors.university = 'Nama kampus wajib diisi.'
-      }
+      const universityError = validateUniversity(university)
+      if (universityError) newErrors.university = universityError
     }
 
-    const cleanPhone = phone.trim().replace(/[-\s]/g, '')
-    if (!cleanPhone) {
-      newErrors.phone = 'Nomor WhatsApp / HP wajib diisi.'
-    } else if (!/^[0-9+]{9,15}$/.test(cleanPhone)) {
-      newErrors.phone = 'Nomor HP tidak valid (hanya angka, 9-15 digit).'
-    }
+    const { error: phoneError } = validateIndonesianPhone(phone)
+    if (phoneError) newErrors.phone = phoneError
 
-    if (skills.length === 0) {
-      newErrors.skills = 'Pilih atau ketik minimal 1 skill yang kamu miliki.'
-    }
+    const skillsError = validateSkillsList(skills)
+    if (skillsError) newErrors.skills = skillsError
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -97,11 +104,30 @@ export function StudentEditProfileForm({
 
     setSubmitting(true)
     try {
-      // profiles hanya boleh di-update pada full_name dan phone.
+      let nextAvatarUrl: string | null | undefined = undefined
+      if (newAvatarFile) {
+        nextAvatarUrl = await uploadAvatarFile(supabase, userId, newAvatarFile)
+      } else if (removeAvatar) {
+        nextAvatarUrl = null
+      }
+
+      const { clean: cleanPhone } = validateIndonesianPhone(phone)
+
+      // profiles hanya boleh di-update pada full_name, phone, dan avatar_url.
       // Jika verified = true, full_name terkunci dan TIDAK dikirim.
-      const profilePayload = verified
-        ? { phone: phone.trim() }
-        : { full_name: fullName.trim(), phone: phone.trim() }
+      const profilePayload: {
+        phone: string
+        full_name?: string
+        avatar_url?: string | null
+      } = {
+        phone: cleanPhone,
+      }
+      if (!verified) {
+        profilePayload.full_name = normalizeSpaces(fullName)
+      }
+      if (nextAvatarUrl !== undefined) {
+        profilePayload.avatar_url = nextAvatarUrl
+      }
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -110,17 +136,23 @@ export function StudentEditProfileForm({
 
       if (profileError) {
         logSupabaseError('StudentEditProfileForm.profiles', profileError)
-        setServerError(profileError.message)
+        setServerError(
+          formatValidationConstraintError(
+            profileError,
+            profileError.message
+          )
+        )
         return
       }
 
       // Jika verified = true, nim dan university terkunci dan TIDAK dikirim.
+      const cleanSkills = skills.map((s) => normalizeSpaces(s))
       const studentPayload = verified
-        ? { skills }
+        ? { skills: cleanSkills }
         : {
             nim: nim.trim(),
-            university: university.trim(),
-            skills,
+            university: normalizeSpaces(university),
+            skills: cleanSkills,
           }
 
       const { error: studentError } = await supabase
@@ -130,9 +162,22 @@ export function StudentEditProfileForm({
 
       if (studentError) {
         logSupabaseError('StudentEditProfileForm.student_profiles', studentError)
-        setServerError(studentError.message)
+        setServerError(
+          formatValidationConstraintError(
+            studentError,
+            studentError.message
+          )
+        )
         return
       }
+
+      if (nextAvatarUrl !== undefined) {
+        setCurrentAvatarUrl(nextAvatarUrl)
+        setNewAvatarFile(null)
+        setRemoveAvatar(false)
+      }
+      setPhone(cleanPhone)
+      setSkills(cleanSkills)
 
       setSuccessMessage('Profil berhasil diperbarui.')
       router.refresh()
@@ -169,6 +214,27 @@ export function StudentEditProfileForm({
           </div>
         )}
 
+        {/* Card 0: Foto Profil */}
+        <div className="bg-white p-4 rounded-3xl shadow-xs border border-gray-100">
+          <AvatarUploadField
+            label="Foto Profil"
+            helperText="Foto profil akan ditampilkan di beranda dan saat melamar pekerjaan. Bisa diubah kapan saja."
+            currentUrl={currentAvatarUrl}
+            pendingFile={newAvatarFile}
+            markedForRemoval={removeAvatar}
+            initials={getInitials(fullName, 'M')}
+            onFileSelect={(file) => {
+              setNewAvatarFile(file)
+              if (file) setRemoveAvatar(false)
+            }}
+            onRemove={() => {
+              setNewAvatarFile(null)
+              setRemoveAvatar(true)
+            }}
+            disabled={submitting}
+          />
+        </div>
+
         {/* Card 1: Informasi Mahasiswa */}
         <div className="bg-white p-4 rounded-3xl shadow-xs border border-gray-100 flex flex-col gap-3.5">
           <h2 className="text-sm font-bold text-[#0B1C30] flex items-center gap-2 border-b border-gray-100 pb-2.5">
@@ -187,6 +253,7 @@ export function StudentEditProfileForm({
             <div className="relative">
               <input
                 type="text"
+                maxLength={60}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 readOnly={verified}
@@ -259,6 +326,7 @@ export function StudentEditProfileForm({
               <input
                 type="text"
                 inputMode="numeric"
+                maxLength={20}
                 value={nim}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^\d]/g, '')
@@ -296,6 +364,7 @@ export function StudentEditProfileForm({
             <div className="relative">
               <input
                 type="text"
+                maxLength={80}
                 value={university}
                 onChange={(e) => setUniversity(e.target.value)}
                 readOnly={verified}

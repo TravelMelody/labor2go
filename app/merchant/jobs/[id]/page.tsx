@@ -15,6 +15,7 @@ interface PageProps {
 interface ProfileRecord {
   id: string
   full_name: string | null
+  avatar_url: string | null
   verified: boolean
 }
 
@@ -205,7 +206,7 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
       await Promise.all([
         supabase
           .from('profiles')
-          .select('id, full_name, verified')
+          .select('id, full_name, avatar_url, verified')
           .in('id', studentIds),
         supabase
           .from('student_profiles')
@@ -317,6 +318,7 @@ async function MerchantManageApplicantsContent({ params }: PageProps) {
       student: {
         id: app.student_id,
         full_name: prof?.full_name || 'Mahasiswa',
+        avatar_url: prof?.avatar_url ?? null,
         verified: Boolean(prof?.verified),
         university: sp?.university || 'Universitas Negeri Semarang',
         skills: Array.isArray(sp?.skills) ? sp.skills : [],

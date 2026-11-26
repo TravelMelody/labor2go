@@ -145,12 +145,6 @@ function LoginContent() {
               selectedRole === 'student' ? 'Mahasiswa' : 'Merchant'
             }`}
           />
-
-          {/* WhatsApp Auth Button (Disabled) */}
-          <SocialLoginButton
-            provider="whatsapp"
-            label="Masuk dengan Nomor WhatsApp"
-          />
         </div>
 
         {/* Email & Password Direct Option */}

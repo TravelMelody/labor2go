@@ -42,7 +42,7 @@ async function StudentEditContent() {
   const [profileRes, studentRes, phoneRes] = await Promise.all([
     supabase
       .from('profiles')
-      .select('full_name, verified, role')
+      .select('full_name, avatar_url, verified, role')
       .eq('id', user.id)
       .maybeSingle(),
     supabase
@@ -82,6 +82,7 @@ async function StudentEditContent() {
       initialFullName={
         profileRes.data?.full_name || user.user_metadata?.full_name || ''
       }
+      initialAvatarUrl={profileRes.data?.avatar_url ?? null}
       initialPhone={typeof phoneRes.data === 'string' ? phoneRes.data : ''}
       initialUniversity={studentRes.data?.university || CAMPUS.name}
       initialNim={studentRes.data?.nim || ''}

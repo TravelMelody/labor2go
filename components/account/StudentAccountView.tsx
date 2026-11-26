@@ -1,6 +1,7 @@
 'use client'
 
 import React from 'react'
+import Image from 'next/image'
 import {
   Award,
   Star,
@@ -22,6 +23,7 @@ import {
 
 export interface StudentAccountViewProps {
   fullName: string
+  avatarUrl: string | null
   university: string
   level: number
   completedJobs: number
@@ -33,6 +35,7 @@ export interface StudentAccountViewProps {
 
 export function StudentAccountView({
   fullName,
+  avatarUrl,
   university,
   level,
   completedJobs,
@@ -70,9 +73,22 @@ export function StudentAccountView({
         {/* Kartu Profil Mahasiswa */}
         <section className="bg-white rounded-3xl p-4 shadow-[0_4px_20px_-2px_rgba(26,43,76,0.06)] border border-gray-100">
           <div className="flex items-center gap-3.5">
-            <div className="w-16 h-16 rounded-full bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/70 flex items-center justify-center font-extrabold text-xl shrink-0 shadow-inner">
-              {initials}
-            </div>
+            {avatarUrl ? (
+              <div className="relative w-16 h-16 rounded-full overflow-hidden border border-orange-200/70 shrink-0 shadow-xs">
+                <Image
+                  src={avatarUrl}
+                  alt={fullName}
+                  fill
+                  className="object-cover"
+                  sizes="64px"
+                  unoptimized
+                />
+              </div>
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/70 flex items-center justify-center font-extrabold text-xl shrink-0 shadow-inner">
+                {initials}
+              </div>
+            )}
 
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-bold text-[#0B1C30] truncate">
@@ -180,7 +196,7 @@ export function StudentAccountView({
               href="/student/account/edit"
               icon={<User className="w-5 h-5" />}
               title="Edit Profil Pribadi"
-              subtitle="Ubah kontak, data kampus, dan keahlian"
+              subtitle="Ubah foto profil, kontak, data kampus, dan keahlian"
             />
             <AccountMenuItem
               href="/student/account/verification"

@@ -15,8 +15,6 @@ import {
   Package,
   Sparkles,
   Briefcase,
-  LogOut,
-  Bell,
   ArrowRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -28,6 +26,8 @@ import {
   VerificationBanner,
   VerifiedBadge,
 } from '@/components/shared/VerificationBanner'
+import { NotificationBell } from '@/components/shared/NotificationBell'
+import { getInitials } from '@/components/account/AccountShared'
 import {
   normalizeVerificationStatus,
   type VerificationStatus,
@@ -35,6 +35,7 @@ import {
 
 interface StudentData {
   fullName: string
+  avatarUrl: string | null
   university: string
   level: number
   verificationStatus: VerificationStatus
@@ -46,11 +47,11 @@ export default function StudentHomePage() {
   const router = useRouter()
   const supabase = createClient()
 
+  const [userId, setUserId] = useState<string | null>(null)
   const [student, setStudent] = useState<StudentData | null>(null)
   const [jobs, setJobs] = useState<JobFeedItem[]>([])
   const [applicationsMap, setApplicationsMap] = useState<Record<string, ApplicationStatus>>({})
   const [loading, setLoading] = useState(true)
-  const [loggingOut, setLoggingOut] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
 
   const fetchHomeData = useCallback(async (silent = false) => {
@@ -65,10 +66,12 @@ export default function StudentHomePage() {
         return
       }
 
+      setUserId(user.id)
+
       // 1. Ambil data profil dasar
       const { data: profile } = await supabase
         .from('profiles')
-        .select('full_name, verified, verification_status, verification_note, role')
+        .select('full_name, avatar_url, verified, verification_status, verification_note, role')
         .eq('id', user.id)
         .maybeSingle()
 
@@ -89,6 +92,7 @@ export default function StudentHomePage() {
       setStudent({
         fullName:
           profile?.full_name || user.user_metadata?.full_name || 'Mahasiswa',
+        avatarUrl: profile?.avatar_url ?? null,
         university:
           studentProfile?.university || CAMPUS.name,
         level: studentProfile?.level || 1,
@@ -148,18 +152,6 @@ export default function StudentHomePage() {
     fetchHomeData(true)
   }, 20000)
 
-  const handleLogout = async () => {
-    if (loggingOut) return
-    setLoggingOut(true)
-    try {
-      await supabase.auth.signOut()
-      router.push('/login')
-      router.refresh()
-    } finally {
-      setLoggingOut(false)
-    }
-  }
-
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const query = searchQuery.trim()
@@ -182,8 +174,8 @@ export default function StudentHomePage() {
   return (
     <div className="flex-1 w-full flex flex-col bg-[#F8F9FF]">
       {/* Sticky Header Top Bar */}
-      <header className="sticky top-0 z-40 w-full bg-[#F8F9FF]/90 backdrop-blur-md px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+      <header className="sticky top-0 z-40 w-full bg-[#F8F9FF]/90 backdrop-blur-xl border-b border-slate-200/60">
+        <div className="h-16 px-4 flex items-center justify-between">
           <Image
             src="/logo.png"
             alt="Labor2Go"
@@ -192,26 +184,27 @@ export default function StudentHomePage() {
             className="h-7 w-auto object-contain"
             priority
           />
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            aria-label="Notifikasi"
-            onClick={() => alert('Fitur notifikasi segera hadir')}
-            className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-100 active:scale-95 transition-colors"
-          >
-            <Bell className="w-4.5 h-4.5" />
-          </button>
-          <button
-            type="button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-            title="Keluar"
-            aria-label="Keluar akun"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-red-500 hover:bg-red-50 active:scale-95 transition-colors disabled:opacity-50"
-          >
-            <LogOut className="w-4.5 h-4.5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <NotificationBell userId={userId} />
+            <Link
+              href="/student/account"
+              aria-label="Profil & Pengaturan Akun"
+              className="relative w-9 h-9 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/80 flex items-center justify-center font-bold text-xs shadow-xs hover:opacity-90 transition-opacity shrink-0"
+            >
+              {student?.avatarUrl ? (
+                <Image
+                  src={student.avatarUrl}
+                  alt={student.fullName}
+                  fill
+                  className="object-cover"
+                  sizes="36px"
+                  unoptimized
+                />
+              ) : (
+                <span>{getInitials(student?.fullName, 'M')}</span>
+              )}
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -268,8 +261,19 @@ export default function StudentHomePage() {
               {/* Sapaan & Badge Level */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-full bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center font-bold text-base shrink-0 shadow-inner">
-                    {getFirstName(student?.fullName).charAt(0)}
+                  <div className="relative w-11 h-11 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/70 flex items-center justify-center font-bold text-base shrink-0 shadow-inner">
+                    {student?.avatarUrl ? (
+                      <Image
+                        src={student.avatarUrl}
+                        alt={student.fullName}
+                        fill
+                        className="object-cover"
+                        sizes="44px"
+                        unoptimized
+                      />
+                    ) : (
+                      <span>{getFirstName(student?.fullName).charAt(0)}</span>
+                    )}
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -330,19 +334,15 @@ export default function StudentHomePage() {
                   </div>
                 </div>
 
-                {/* Tombol Tarik Tunai: Nonaktif "Segera hadir" */}
-                <button
-                  type="button"
-                  disabled
-                  title="Fitur Tarik Tunai Segera Hadir"
-                  className="bg-gray-200 text-gray-500 px-2.5 py-1.5 rounded-full text-[11px] font-bold cursor-not-allowed flex items-center gap-1 transition-colors shrink-0 whitespace-nowrap"
+                {/* Tombol Tarik Tunai -> arahkan ke halaman dompet */}
+                <Link
+                  href="/student/wallet"
+                  aria-label="Tarik Tunai di Dompet"
+                  className="bg-[#FF6B00] hover:bg-[#E05E00] text-white px-3.5 py-2 rounded-full text-xs font-bold shadow-[0_4px_12px_rgba(255,107,0,0.3)] inline-flex items-center gap-1.5 active:scale-95 transition-all shrink-0 whitespace-nowrap"
                 >
                   <Banknote className="w-3.5 h-3.5 shrink-0" />
                   <span>Tarik Tunai</span>
-                  <span className="text-[9px] bg-gray-300 text-gray-600 px-1.5 py-0.5 rounded-full font-medium">
-                    Segera
-                  </span>
-                </button>
+                </Link>
               </div>
             </section>
 

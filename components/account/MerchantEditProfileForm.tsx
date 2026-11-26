@@ -15,6 +15,14 @@ import {
   Save,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  formatValidationConstraintError,
+  normalizeSpaces,
+  validateAddress,
+  validateBusinessName,
+  validateIndonesianPhone,
+  validatePersonName,
+} from '@/lib/validation'
 import { ImageUploadField } from '@/components/onboarding/ImageUploadField'
 import {
   AccountSubpageHeader,
@@ -115,25 +123,18 @@ export function MerchantEditProfileForm({
     const newErrors: Record<string, string> = {}
 
     if (!verified) {
-      if (!fullName.trim()) {
-        newErrors.fullName = 'Nama lengkap pemilik wajib diisi.'
-      } else if (fullName.trim().length < 2) {
-        newErrors.fullName = 'Nama minimal 2 karakter.'
-      }
+      const fullNameError = validatePersonName(fullName, 'Nama lengkap pemilik')
+      if (fullNameError) newErrors.fullName = fullNameError
 
-      if (!businessName.trim()) {
-        newErrors.businessName = 'Nama usaha wajib diisi.'
-      } else if (businessName.trim().length < 2) {
-        newErrors.businessName = 'Nama usaha minimal 2 karakter.'
-      }
+      const businessNameError = validateBusinessName(businessName)
+      if (businessNameError) newErrors.businessName = businessNameError
     }
 
-    const cleanPhone = phone.trim().replace(/[-\s]/g, '')
-    if (!cleanPhone) {
-      newErrors.phone = 'Nomor WhatsApp / HP usaha wajib diisi.'
-    } else if (!/^[0-9+]{9,15}$/.test(cleanPhone)) {
-      newErrors.phone = 'Nomor HP tidak valid (hanya angka, 9-15 digit).'
-    }
+    const { error: phoneError } = validateIndonesianPhone(phone)
+    if (phoneError) newErrors.phone = phoneError
+
+    const addressError = validateAddress(address)
+    if (addressError) newErrors.address = addressError
 
     if (!businessType.trim()) {
       newErrors.businessType = 'Pilih jenis usaha Anda.'
@@ -152,10 +153,12 @@ export function MerchantEditProfileForm({
 
     setSubmitting(true)
     try {
+      const { clean: cleanPhone } = validateIndonesianPhone(phone)
+
       // Trigger database mengunci full_name saat verified = true
       const profilePayload = verified
-        ? { phone: phone.trim() }
-        : { full_name: fullName.trim(), phone: phone.trim() }
+        ? { phone: cleanPhone }
+        : { full_name: normalizeSpaces(fullName), phone: cleanPhone }
 
       const { error: profileError } = await supabase
         .from('profiles')
@@ -164,7 +167,12 @@ export function MerchantEditProfileForm({
 
       if (profileError) {
         logSupabaseError('MerchantEditProfileForm.profiles', profileError)
-        setServerError(profileError.message)
+        setServerError(
+          formatValidationConstraintError(
+            profileError,
+            profileError.message
+          )
+        )
         return
       }
 
@@ -192,6 +200,8 @@ export function MerchantEditProfileForm({
         uploadedPhotoUrl = `${publicUrl}?v=${Date.now()}`
       }
 
+      const cleanAddress = normalizeSpaces(address)
+
       // Jika verified = true, business_name dan photo_url terkunci dan TIDAK dikirim.
       const umkmPayload: {
         business_type: string
@@ -202,13 +212,13 @@ export function MerchantEditProfileForm({
         photo_url?: string
       } = {
         business_type: businessType,
-        address: address.trim() || null,
+        address: cleanAddress || null,
         lat: lat !== null ? Number(lat) : null,
         lng: lng !== null ? Number(lng) : null,
       }
 
       if (!verified) {
-        umkmPayload.business_name = businessName.trim()
+        umkmPayload.business_name = normalizeSpaces(businessName)
         if (uploadedPhotoUrl) {
           umkmPayload.photo_url = uploadedPhotoUrl
         }
@@ -221,7 +231,9 @@ export function MerchantEditProfileForm({
 
       if (umkmError) {
         logSupabaseError('MerchantEditProfileForm.umkm_profiles', umkmError)
-        setServerError(umkmError.message)
+        setServerError(
+          formatValidationConstraintError(umkmError, umkmError.message)
+        )
         return
       }
 
@@ -229,6 +241,7 @@ export function MerchantEditProfileForm({
         setCurrentPhotoUrl(uploadedPhotoUrl)
         setNewPhotoFile(null)
       }
+      setPhone(cleanPhone)
 
       setSuccessMessage('Profil toko berhasil diperbarui.')
       router.refresh()
@@ -283,6 +296,7 @@ export function MerchantEditProfileForm({
             <div className="relative">
               <input
                 type="text"
+                maxLength={60}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 readOnly={verified}
@@ -347,6 +361,7 @@ export function MerchantEditProfileForm({
             <div className="relative">
               <input
                 type="text"
+                maxLength={60}
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
                 readOnly={verified}
@@ -411,12 +426,22 @@ export function MerchantEditProfileForm({
             </label>
             <textarea
               rows={2}
+              maxLength={200}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               disabled={submitting}
               placeholder="Contoh: Jl. Taman Siswa No. 12, Sekaran, Gunungpati"
-              className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border border-gray-200 focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-hidden transition-colors resize-none"
+              className={`w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border outline-hidden transition-colors resize-none ${
+                errors.address
+                  ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-400'
+                  : 'border-gray-200 focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00]'
+              }`}
             />
+            {errors.address && (
+              <p className="text-[11px] text-red-500 font-medium">
+                {errors.address}
+              </p>
+            )}
           </div>
 
           {/* Gunakan lokasi saya */}

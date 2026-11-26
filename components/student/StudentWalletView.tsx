@@ -20,6 +20,10 @@ import {
   WALLET_TX_PAGE_SIZE,
   type WalletTransactionItem,
 } from '@/lib/wallet'
+import {
+  formatValidationConstraintError,
+  validateWithdrawalAccount,
+} from '@/lib/validation'
 
 const MIN_WITHDRAWAL_AMOUNT = 10_000
 
@@ -35,7 +39,7 @@ const WITHDRAWAL_DESTINATIONS = [
   {
     value: 'bank',
     label: 'Bank',
-    placeholder: 'Contoh: BCA 1234567890 a.n. Nama',
+    placeholder: 'Contoh: 1234567890 (nomor rekening)',
   },
 ] as const
 
@@ -262,8 +266,9 @@ export function StudentWalletView({
     }
 
     const trimmedAccount = destinationAccount.trim()
-    if (trimmedAccount.length < 5) {
-      setWithdrawError('Nomor tujuan minimal 5 karakter')
+    const accountError = validateWithdrawalAccount(trimmedAccount)
+    if (accountError) {
+      setWithdrawError(accountError)
       return
     }
 
@@ -284,7 +289,12 @@ export function StudentWalletView({
         } else {
           console.error('Kesalahan tak terduga saat request_withdrawal:', error)
         }
-        setWithdrawError(error.message || 'Gagal mengajukan penarikan saldo')
+        setWithdrawError(
+          formatValidationConstraintError(
+            error,
+            'Gagal mengajukan penarikan saldo'
+          )
+        )
         return
       }
 
@@ -548,9 +558,11 @@ export function StudentWalletView({
                 <input
                   id="withdraw-account-input"
                   type="text"
+                  inputMode="numeric"
+                  maxLength={20}
                   value={destinationAccount}
                   onChange={(e) => {
-                    setDestinationAccount(e.target.value)
+                    setDestinationAccount(e.target.value.replace(/\D/g, ''))
                     setWithdrawError(null)
                   }}
                   placeholder={selectedDestination.placeholder}

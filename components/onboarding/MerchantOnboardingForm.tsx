@@ -13,6 +13,14 @@ import {
   ArrowRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
+import {
+  formatValidationConstraintError,
+  normalizeSpaces,
+  validateAddress,
+  validateBusinessName,
+  validateIndonesianPhone,
+  validatePersonName,
+} from '@/lib/validation'
 import { ImageUploadField } from './ImageUploadField'
 
 interface MerchantOnboardingFormProps {
@@ -92,27 +100,17 @@ export function MerchantOnboardingForm({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
 
-    // Nama Pemilik
-    if (!fullName.trim()) {
-      newErrors.fullName = 'Nama lengkap pemilik wajib diisi.'
-    } else if (fullName.trim().length < 2) {
-      newErrors.fullName = 'Nama minimal 2 karakter.'
-    }
+    const fullNameError = validatePersonName(fullName, 'Nama lengkap pemilik')
+    if (fullNameError) newErrors.fullName = fullNameError
 
-    // Nomor HP
-    const cleanPhone = phone.trim().replace(/[-\s]/g, '')
-    if (!cleanPhone) {
-      newErrors.phone = 'Nomor WhatsApp / HP usaha wajib diisi.'
-    } else if (!/^[0-9+]{9,15}$/.test(cleanPhone)) {
-      newErrors.phone = 'Nomor HP tidak valid (hanya angka, 9-15 digit).'
-    }
+    const { error: phoneError } = validateIndonesianPhone(phone)
+    if (phoneError) newErrors.phone = phoneError
 
-    // Nama Usaha (Wajib)
-    if (!businessName.trim()) {
-      newErrors.businessName = 'Nama usaha wajib diisi.'
-    } else if (businessName.trim().length < 2) {
-      newErrors.businessName = 'Nama usaha minimal 2 karakter.'
-    }
+    const businessNameError = validateBusinessName(businessName)
+    if (businessNameError) newErrors.businessName = businessNameError
+
+    const addressError = validateAddress(address)
+    if (addressError) newErrors.address = addressError
 
     // Jenis Usaha
     if (!businessType) {
@@ -186,11 +184,13 @@ export function MerchantOnboardingForm({
 
       // 2. Simpan nama lengkap dan nomor HP ke profiles
       // Role authenticated HANYA punya izin UPDATE pada kolom full_name dan phone
+      const { clean: cleanPhone } = validateIndonesianPhone(phone)
+      const cleanAddress = normalizeSpaces(address)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
-          full_name: fullName.trim(),
-          phone: phone.trim(),
+          full_name: normalizeSpaces(fullName),
+          phone: cleanPhone,
         })
         .eq('id', user.id)
 
@@ -201,7 +201,12 @@ export function MerchantOnboardingForm({
           hint: profileError.hint,
           code: profileError.code,
         })
-        throw new Error(`Gagal memperbarui profil: ${profileError.message}`)
+        throw new Error(
+          formatValidationConstraintError(
+            profileError,
+            `Gagal memperbarui profil: ${profileError.message}`
+          )
+        )
       }
 
       // 3. Simpan baris detail ke umkm_profiles
@@ -210,9 +215,9 @@ export function MerchantOnboardingForm({
         .from('umkm_profiles')
         .upsert({
           id: user.id,
-          business_name: businessName.trim(),
+          business_name: normalizeSpaces(businessName),
           business_type: businessType,
-          address: address.trim() || null,
+          address: cleanAddress || null,
           lat: lat !== null ? Number(lat) : null,
           lng: lng !== null ? Number(lng) : null,
           photo_url: publicUrl,
@@ -226,7 +231,10 @@ export function MerchantOnboardingForm({
           code: umkmProfileError.code,
         })
         throw new Error(
-          `Gagal menyimpan profil usaha: ${umkmProfileError.message}`
+          formatValidationConstraintError(
+            umkmProfileError,
+            `Gagal menyimpan profil usaha: ${umkmProfileError.message}`
+          )
         )
       }
 
@@ -273,6 +281,7 @@ export function MerchantOnboardingForm({
           </label>
           <input
             type="text"
+            maxLength={60}
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
             placeholder="Contoh: Pak Agus Subagio"
@@ -330,6 +339,7 @@ export function MerchantOnboardingForm({
           </label>
           <input
             type="text"
+            maxLength={60}
             value={businessName}
             onChange={(e) => setBusinessName(e.target.value)}
             placeholder="Contoh: Geprek Sarjana UNNES"
@@ -386,12 +396,22 @@ export function MerchantOnboardingForm({
           </label>
           <textarea
             rows={2}
+            maxLength={200}
             value={address}
             onChange={(e) => setAddress(e.target.value)}
             placeholder="Contoh: Jl. Taman Siswa No. 12, Sekaran, Gunungpati (depan gerbang barat)"
             disabled={submitting}
-            className="w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border border-gray-200 focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00] outline-hidden transition-colors resize-none"
+            className={`w-full px-3.5 py-2.5 rounded-xl text-xs sm:text-sm bg-white border outline-hidden transition-colors resize-none ${
+              errors.address
+                ? 'border-red-400 focus:border-red-500 focus:ring-1 focus:ring-red-400'
+                : 'border-gray-200 focus:border-[#FF6B00] focus:ring-1 focus:ring-[#FF6B00]'
+            }`}
           />
+          {errors.address && (
+            <p className="text-[11px] text-red-500 font-medium">
+              {errors.address}
+            </p>
+          )}
         </div>
 
         {/* Tombol Gunakan Lokasi Saya (navigator.geolocation) */}

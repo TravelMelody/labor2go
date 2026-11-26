@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
@@ -41,10 +42,12 @@ import {
   type ReviewItem,
 } from '@/components/reviews/ReviewList'
 import { StarRating } from '@/components/reviews/StarRating'
+import { getInitials } from '@/components/account/AccountShared'
 
 export interface ApplicantStudentInfo {
   id: string
   full_name: string | null
+  avatar_url: string | null
   verified: boolean
   university: string
   skills: string[]
@@ -92,6 +95,7 @@ export interface MerchantJobInfo {
 interface ProfileRecord {
   id: string
   full_name: string | null
+  avatar_url: string | null
   verified: boolean
 }
 
@@ -269,7 +273,7 @@ export function MerchantJobApplicantsView({
             await Promise.all([
               supabase
                 .from('profiles')
-                .select('id, full_name, verified')
+                .select('id, full_name, avatar_url, verified')
                 .in('id', studentIds),
               supabase
                 .from('student_profiles')
@@ -381,6 +385,7 @@ export function MerchantJobApplicantsView({
             student: {
               id: app.student_id,
               full_name: prof?.full_name || 'Mahasiswa',
+              avatar_url: prof?.avatar_url ?? null,
               verified: Boolean(prof?.verified),
               university: sp?.university || 'Universitas Negeri Semarang',
               skills: Array.isArray(sp?.skills) ? sp.skills : [],
@@ -914,23 +919,39 @@ export function MerchantJobApplicantsView({
                       : 'border-gray-200'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2 mb-2.5">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <h3 className="text-sm font-bold text-gray-900 truncate">
-                          {app.student.full_name || 'Mahasiswa'}
-                        </h3>
-                        {app.student.verified && (
-                          <span
-                            className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0"
-                            title="Terverifikasi"
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            Terverifikasi
-                          </span>
+                  <div className="flex items-start justify-between gap-2.5 mb-2.5">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/70 flex items-center justify-center font-bold text-xs shrink-0">
+                        {app.student.avatar_url ? (
+                          <Image
+                            src={app.student.avatar_url}
+                            alt={app.student.full_name || 'Mahasiswa'}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                            unoptimized
+                          />
+                        ) : (
+                          <span>{getInitials(app.student.full_name, 'M')}</span>
                         )}
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{app.student.university}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-gray-900 truncate">
+                            {app.student.full_name || 'Mahasiswa'}
+                          </h3>
+                          {app.student.verified && (
+                            <span
+                              className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full shrink-0"
+                              title="Terverifikasi"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              Terverifikasi
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5 truncate">{app.student.university}</p>
+                      </div>
                     </div>
 
                     {/* Status badge per pekerja */}
@@ -1156,31 +1177,47 @@ export function MerchantJobApplicantsView({
                 key={app.id}
                 className="bg-white rounded-2xl p-4 border border-gray-100/90 shadow-sm transition-all hover:border-gray-200"
               >
-                {/* Header Card Pelamar: Nama, Kampus, Badge Verifikasi */}
+                {/* Header Card Pelamar: Avatar, Nama, Kampus, Badge Verifikasi */}
                 <div className="flex items-start justify-between gap-3 mb-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="text-sm font-extrabold text-[#0B1C30] truncate">
-                        {app.student.full_name || 'Mahasiswa'}
-                      </h3>
-
-                      {/* Badge Verifikasi dari profiles.verified */}
-                      {app.student.verified ? (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          Terverifikasi
-                        </span>
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden bg-[#FFEDE0] text-[#FF6B00] border border-orange-200/70 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5">
+                      {app.student.avatar_url ? (
+                        <Image
+                          src={app.student.avatar_url}
+                          alt={app.student.full_name || 'Mahasiswa'}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                          unoptimized
+                        />
                       ) : (
-                        <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
-                          Belum diverifikasi
-                        </span>
+                        <span>{getInitials(app.student.full_name, 'M')}</span>
                       )}
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-sm font-extrabold text-[#0B1C30] truncate">
+                          {app.student.full_name || 'Mahasiswa'}
+                        </h3>
 
-                    {/* Kampus */}
-                    <p className="text-xs text-gray-500 truncate mt-0.5 font-medium">
-                      {app.student.university}
-                    </p>
+                        {/* Badge Verifikasi dari profiles.verified */}
+                        {app.student.verified ? (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Terverifikasi
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                            Belum diverifikasi
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Kampus */}
+                      <p className="text-xs text-gray-500 truncate mt-0.5 font-medium">
+                        {app.student.university}
+                      </p>
+                    </div>
                   </div>
 
                   {/* Badge Level */}
