@@ -4,10 +4,6 @@ import React, { useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import {
-  Zap,
-  Clock,
-  ShieldCheck,
-  BadgeCheck,
   ChevronLeft,
   ChevronRight,
   ArrowRight,
@@ -38,25 +34,16 @@ const FEATURES = [
     title: 'Kerja Fleksibel Sesuai Jadwal Kuliah',
     description:
       'Pilih pekerjaan harian atau per shift di sekitar kampus tanpa kontrak mengikat, cocok disela jadwal kuliah.',
-    icon: Clock,
-    iconBg: 'bg-[#FFEDE0]',
-    iconColor: 'text-[#FF6B00]',
   },
   {
     title: 'Pembayaran Aman Tertahan Sistem',
     description:
       'Upah pekerja ditahan aman di sistem saat lamaran diterima dan langsung cair ke dompet setelah tugas selesai.',
-    icon: ShieldCheck,
-    iconBg: 'bg-emerald-50',
-    iconColor: 'text-emerald-600',
   },
   {
     title: 'Verifikasi Mahasiswa & UMKM',
     description:
       'Identitas mahasiswa (KTM) dan usaha mitra UMKM diverifikasi oleh admin agar kolaborasi berlangsung tepercaya.',
-    icon: BadgeCheck,
-    iconBg: 'bg-[#E5EEFF]',
-    iconColor: 'text-[#0B1C30]',
   },
 ] as const
 
@@ -188,8 +175,7 @@ export function LandingPageClient({
         <section className="w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-7 sm:pt-12 pb-8 sm:pb-12">
           <div className="bg-white rounded-3xl border border-gray-100 shadow-[0_8px_30px_-4px_rgba(11,28,48,0.06)] p-5 sm:p-8 lg:p-10 grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center">
             <div className="lg:col-span-7 flex flex-col items-start">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#FFEDE0] text-[#FF6B00] mb-4">
-                <Zap className="w-3.5 h-3.5 fill-[#FF6B00]" />
+              <div className="inline-flex items-center px-3 py-1 rounded-full bg-[#FFEDE0] text-[#FF6B00] mb-4">
                 <span className="text-xs font-bold">
                   Marketplace Kerja Mikro Kampus
                 </span>
@@ -227,7 +213,7 @@ export function LandingPageClient({
 
             {/* Ringkasan Dua Peran */}
             <div className="lg:col-span-5 flex flex-col gap-3">
-              <div className="p-4 rounded-2xl bg-[#FFF7F1] border border-orange-100 flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#FFF7F1] border border-orange-100 flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-[#FFEDE0] text-[#FF6B00] flex items-center justify-center shrink-0">
                   <GraduationCap className="w-5 h-5" />
                 </div>
@@ -242,7 +228,7 @@ export function LandingPageClient({
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#F4F7FF] border border-blue-100/80 flex items-start gap-3.5">
+              <div className="p-4 rounded-2xl bg-[#F4F7FF] border border-blue-100/80 flex items-center gap-3.5">
                 <div className="w-11 h-11 rounded-xl bg-[#E5EEFF] text-[#0B1C30] flex items-center justify-center shrink-0">
                   <Store className="w-5 h-5" />
                 </div>
@@ -272,29 +258,19 @@ export function LandingPageClient({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {FEATURES.map((feature) => {
-              const Icon = feature.icon
-              return (
-                <div
-                  key={feature.title}
-                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs flex flex-col gap-3"
-                >
-                  <div
-                    className={`w-11 h-11 rounded-xl ${feature.iconBg} ${feature.iconColor} flex items-center justify-center`}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm sm:text-base font-bold text-[#0B1C30] mb-1">
-                      {feature.title}
-                    </h3>
-                    <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
+            {FEATURES.map((feature) => (
+              <div
+                key={feature.title}
+                className="bg-white rounded-2xl p-5 border border-gray-100 shadow-xs flex flex-col"
+              >
+                <h3 className="text-sm sm:text-base font-bold text-[#0B1C30] mb-1.5">
+                  {feature.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
